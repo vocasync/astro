@@ -76,3 +76,11 @@ git tag vX.Y.Z && git push && git push --tags
 The `audio-map.json` schema `version` (currently 3) is load-bearing: legacy entries
 missing v3 fields are re-synthesized on the next `vocasync sync` (an API cost). Call
 this out in release notes when the schema changes.
+
+## External design memory (dev vault)
+
+Cross-device architectural memory lives in the **dev** Obsidian vault (synced
+across all devices; typically `~/Projects/dev`). Before non-trivial work, consult
+it — start at `_meta/HOME.md`, then `projects/vocasync/` and `_shared/`. Record durable
+decisions there as you go so they carry to other devices (Claude Code's local
+durable memory does not sync between machines).
