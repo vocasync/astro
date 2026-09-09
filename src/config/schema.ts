@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { ALIGNMENT_LOCALES, canAlign, LANGUAGE_NAMES, SYNTHESIS_LANGUAGES } from "./languages.js";
 
 /**
  * Supported TTS voices (matches the platform's 9 OpenAI voices)
@@ -30,26 +31,14 @@ export const FormatSchema = z.enum(["mp3", "aac", "opus", "flac", "wav"]);
 export type Format = z.infer<typeof FormatSchema>;
 
 /**
- * Supported languages for synthesis + alignment
- * Uses short ISO 639-1 codes as expected by the VocaSync API
- * Only languages where both OpenAI TTS synthesis and MFA forced alignment are available
+ * Languages the synthesis voices can speak (ISO 639-1).
+ *
+ * Wider than the set that can be force-aligned. A post that needs word highlighting is
+ * additionally constrained by `ALIGNMENT_LOCALES`; one synthesised with `align: false`
+ * is not. `validateConfig` rejects the impossible combination rather than letting a
+ * sync pay for synthesis and then fail at the alignment step.
  */
-export const LanguageSchema = z.enum([
-  "zh",
-  "cs",
-  "en",
-  "fr",
-  "de",
-  "ja",
-  "ko",
-  "pl",
-  "pt",
-  "ru",
-  "es",
-  "sv",
-  "tr",
-  "uk",
-]);
+export const LanguageSchema = z.enum(SYNTHESIS_LANGUAGES);
 export type Language = z.infer<typeof LanguageSchema>;
 
 /**
@@ -129,6 +118,16 @@ export const VocaSyncConfigSchema = z.object({
   math: MathConfigSchema.prefault({}),
   /** Output paths */
   output: OutputConfigSchema.prefault({}),
+  /**
+   * Produce word-level timings, which is what powers highlighting and click-to-seek.
+   *
+   * Turn it off for narration alone: it costs less, and it lifts the language ceiling
+   * from the aligned set to every language the voices can speak. Overridable per post
+   * with `align: false` in frontmatter.
+   *
+   * @default true
+   */
+  align: z.boolean().default(true),
   /** Frontmatter field to check for audio opt-in/out (true/false) */
   frontmatterField: z.string().optional(),
   /** Processing options */
@@ -170,7 +169,30 @@ export type VocaSyncUserConfig = {
  * Validate and normalize user configuration
  */
 export function validateConfig(userConfig: VocaSyncUserConfig): VocaSyncConfig {
-  return VocaSyncConfigSchema.parse(userConfig);
+  const config = VocaSyncConfigSchema.parse(userConfig);
+  assertLanguageSupportsAlignment(config.language, config.align);
+  return config;
+}
+
+/**
+ * Reject a language that cannot be aligned while alignment is requested.
+ *
+ * Caught here rather than at sync time because the failure would otherwise arrive
+ * after synthesis has already been paid for, as a rejection from the alignment
+ * endpoint that says nothing about how to proceed.
+ */
+export function assertLanguageSupportsAlignment(language: string, align: boolean): void {
+  if (!align || canAlign(language)) return;
+  const name = LANGUAGE_NAMES[language] ?? language;
+  throw new Error(
+    `${name} ("${language}") can be synthesised but not force-aligned, so it cannot ` +
+      "carry the word timings that highlighting and click-to-seek need.\n\n" +
+      "Set `align: false` in vocasync.config.mjs to narrate it without highlighting, " +
+      "or `align: false` in a single post's frontmatter to make the exception there.\n\n" +
+      `Alignment is available for: ${Object.keys(ALIGNMENT_LOCALES)
+        .map((c) => `${LANGUAGE_NAMES[c] ?? c} (${c})`)
+        .join(", ")}.`
+  );
 }
 
 /**
@@ -178,6 +200,7 @@ export function validateConfig(userConfig: VocaSyncUserConfig): VocaSyncConfig {
  */
 export const defaultConfig: Omit<VocaSyncConfig, "collection"> = {
   language: "en",
+  align: true,
   synthesis: {
     voice: "onyx",
     quality: "sd",

@@ -8,7 +8,7 @@ Turn your Astro blog posts into narrated audio with word-level synchronization.
 - 🎯 **Word-Level Alignment** - Precise timestamps for every word, powered by forced alignment
 - ✨ **Live Word Highlighting** - Karaoke-style highlighting that follows along with playback
 - 🎛️ **Built-in Audio Player** - Keyboard shortcuts, a floating dock, and controls you can reorder or replace
-- 🌍 **14 Languages** - Global reach with support for 14 languages
+- 🌍 **57 languages narrated, 13 highlighted** - Skip alignment with `align: false` and any language the voices speak is available
 - 🎨 **Themeable down to the pixel** - Four seeds carry a whole theme; every rule loses to yours, so no `!important`
 - 🌗 **Dark mode that follows yours** - The OS preference plus `.dark`, `[data-theme]` and `[data-mode]`, with no configuration
 - 🈯 **Translatable** - Every visible string and accessible label is overridable
@@ -262,6 +262,10 @@ export default {
     concurrency: 3,                  // Parallel jobs (1-10)
     force: false,                    // Force reprocessing
   },
+
+  // Produce word-level timings. Off means narration only: cheaper, and any of the 57
+  // synthesis languages rather than the 13 that can be aligned.
+  align: true,
 };
 ```
 
@@ -281,7 +285,19 @@ Bonjour…
 ```
 
 Invalid values are skipped with a warning. Changing any of these re-syncs the post
-(the change-detection hash includes the resolved voice/language/format).
+(the change-detection hash includes the resolved voice, language, format and
+`align`).
+
+`align: false` in a post's frontmatter narrates that post without word timings, which
+also lets it use a language outside the aligned set:
+
+```yaml
+---
+title: "ประกาศ"
+language: th
+align: false
+---
+```
 
 ### Rehype Plugin Options
 
@@ -582,19 +598,94 @@ skip `player.css`:
 
 ## Supported Languages
 
-VocaSync supports 14 languages where both speech synthesis and forced alignment are available. Languages use ISO 639-1 codes:
+There are two lists, and which one applies depends on whether you want word
+highlighting.
 
-| Code | Language | Code | Language |
-|------|----------|------|----------|
-| `zh` | Chinese | `pl` | Polish |
-| `cs` | Czech | `pt` | Portuguese |
-| `en` | English | `ru` | Russian |
-| `fr` | French | `es` | Spanish |
-| `de` | German | `sv` | Swedish |
-| `ja` | Japanese | `tr` | Turkish |
-| `ko` | Korean | `uk` | Ukrainian |
+**Narration** works in all 57 languages the synthesis voices speak.
 
-> **Note:** VocaSync requires both speech synthesis and word-level forced alignment for each language. While synthesis (powered by OpenAI TTS) supports 61 languages, alignment (powered by Montreal Forced Aligner) is available for a smaller set. The 14 languages listed above are where both capabilities overlap, and they match the platform's alignment-supported set.
+**Word highlighting and click-to-seek** need forced alignment, which covers 13 of them.
+Alignment is what produces the per-word timings; without it there is nothing to
+highlight or seek to.
+
+So a post in Thai or Hindi can be narrated — it just cannot be highlighted:
+
+```javascript
+// vocasync.config.mjs
+export default {
+  collection: { name: "blog", path: "./src/content/blog" },
+  language: "th",
+  align: false, // narration only; skips alignment
+};
+```
+
+Set `align: false` in a single post's frontmatter to make the exception there instead.
+Asking for a language that cannot align while `align` is on is rejected before any
+synthesis is paid for, with a message naming the language and what to do about it.
+
+| Code | Language | Highlighting |
+|------|----------|--------------|
+| `af` | Afrikaans | — |
+| `ar` | Arabic | — |
+| `hy` | Armenian | — |
+| `az` | Azerbaijani | — |
+| `be` | Belarusian | — |
+| `bs` | Bosnian | — |
+| `bg` | Bulgarian | — |
+| `ca` | Catalan | — |
+| `zh` | Chinese | ✅ |
+| `hr` | Croatian | — |
+| `cs` | Czech | ✅ |
+| `da` | Danish | — |
+| `nl` | Dutch | — |
+| `en` | English | ✅ |
+| `et` | Estonian | — |
+| `fi` | Finnish | — |
+| `fr` | French | ✅ |
+| `gl` | Galician | — |
+| `de` | German | ✅ |
+| `el` | Greek | — |
+| `he` | Hebrew | — |
+| `hi` | Hindi | — |
+| `hu` | Hungarian | — |
+| `is` | Icelandic | — |
+| `id` | Indonesian | — |
+| `it` | Italian | — |
+| `ja` | Japanese | ✅ |
+| `kn` | Kannada | — |
+| `kk` | Kazakh | — |
+| `ko` | Korean | — |
+| `lv` | Latvian | — |
+| `lt` | Lithuanian | — |
+| `mk` | Macedonian | — |
+| `ms` | Malay | — |
+| `mi` | Maori | — |
+| `mr` | Marathi | — |
+| `ne` | Nepali | — |
+| `no` | Norwegian | — |
+| `fa` | Persian | — |
+| `pl` | Polish | ✅ |
+| `pt` | Portuguese | ✅ |
+| `ro` | Romanian | — |
+| `ru` | Russian | ✅ |
+| `sr` | Serbian | — |
+| `sk` | Slovak | — |
+| `sl` | Slovenian | — |
+| `es` | Spanish | ✅ |
+| `sw` | Swahili | — |
+| `sv` | Swedish | ✅ |
+| `tl` | Tagalog | — |
+| `ta` | Tamil | — |
+| `th` | Thai | — |
+| `tr` | Turkish | ✅ |
+| `uk` | Ukrainian | ✅ |
+| `ur` | Urdu | — |
+| `vi` | Vietnamese | — |
+| `cy` | Welsh | — |
+
+> **Korean** was withdrawn from alignment in September 2026. It still synthesises;
+> pass `align: false` to use it.
+
+Turning alignment off also costs less, since it is a second job on top of synthesis.
 
 ## Math Support
 
@@ -1090,6 +1181,19 @@ Create a `vocasync.config.mjs` file in your project root.
 4. View source: each word should be a `<span class="vocasync-word" data-i="…">`. If the
    spans are absent the rehype plugin did not run; if they are present but nothing
    lights up, the audio map and the page disagree — see below.
+
+### "cannot be force-aligned"
+
+The language can be narrated but has no forced-alignment model, so it cannot carry the
+word timings highlighting needs. Set `align: false` in `vocasync.config.mjs`, or in a
+single post's frontmatter, to narrate it without highlighting. See
+[Supported Languages](#supported-languages) for which is which.
+
+### A post has audio but no highlighting
+
+Check whether it was synthesised with `align: false` — deliberately unaligned posts
+carry no word timings, so the player omits the highlighting toggle rather than showing
+an inert control, and the rehype plugin does not wrap its words.
 
 ### Highlighting drifts partway through a post
 

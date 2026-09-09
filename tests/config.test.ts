@@ -1,5 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import { FormatSchema, LanguageSchema, VoiceSchema, validateConfig } from "../src/config/index.js";
+import {
+  ALIGNMENT_LOCALES,
+  canAlign,
+  SYNTHESIS_LANGUAGES,
+  toAlignmentLocale,
+} from "../src/config/languages.js";
 
 describe("config schemas", () => {
   test("accepts all 9 platform voices", () => {
@@ -19,26 +25,71 @@ describe("config schemas", () => {
     expect(FormatSchema.safeParse("ogg").success).toBe(false);
   });
 
-  test("accepts the 14 alignment-supported languages, rejects others", () => {
-    const langs = [
-      "zh",
-      "cs",
-      "en",
-      "fr",
-      "de",
-      "ja",
-      "ko",
-      "pl",
-      "pt",
-      "ru",
-      "es",
-      "sv",
-      "tr",
-      "uk",
-    ];
-    for (const l of langs) expect(LanguageSchema.safeParse(l).success).toBe(true);
-    expect(langs).toHaveLength(14);
-    expect(LanguageSchema.safeParse("hi").success).toBe(false);
+  test("accepts every language the voices can speak", () => {
+    // Synthesis is the wider of the two lists; alignment is checked separately.
+    expect(SYNTHESIS_LANGUAGES).toHaveLength(57);
+    for (const l of SYNTHESIS_LANGUAGES) {
+      expect(LanguageSchema.safeParse(l).success).toBe(true);
+    }
+    // Languages that can be narrated but not highlighted.
+    for (const l of ["hi", "th", "vi", "ko"]) {
+      expect(LanguageSchema.safeParse(l).success).toBe(true);
+    }
+    expect(LanguageSchema.safeParse("xx").success).toBe(false);
+  });
+
+  test("alignment covers a strict subset of synthesis", () => {
+    const aligned = Object.keys(ALIGNMENT_LOCALES);
+    expect(aligned.length).toBeLessThan(SYNTHESIS_LANGUAGES.length);
+    for (const l of aligned) {
+      expect(SYNTHESIS_LANGUAGES).toContain(l);
+    }
+  });
+
+  test("Korean synthesises but no longer aligns", () => {
+    // Withdrawn from alignment in September 2026. The plugin still advertised it,
+    // so a Korean post would have paid for synthesis and then failed to align.
+    expect(LanguageSchema.safeParse("ko").success).toBe(true);
+    expect(canAlign("ko")).toBe(false);
+    expect(toAlignmentLocale("ko")).toBeNull();
+  });
+
+  test("an unalignable language returns no locale, rather than defaulting to English", () => {
+    // The previous implementation fell back to `en-US` for anything unrecognised,
+    // which would align Thai audio against an English acoustic model and yield
+    // timings that are confidently wrong instead of an error.
+    expect(toAlignmentLocale("th")).toBeNull();
+    expect(toAlignmentLocale("en")).toBe("en-US");
+    expect(toAlignmentLocale("zh")).toBe("zh-CN");
+  });
+
+  test("rejects a language that cannot align while alignment is on", () => {
+    expect(() =>
+      validateConfig({ collection: { name: "b", path: "./p" }, language: "th" })
+    ).toThrow(/cannot carry the word timings|not force-aligned/);
+  });
+
+  test("accepts the same language once alignment is turned off", () => {
+    const config = validateConfig({
+      collection: { name: "b", path: "./p" },
+      language: "th",
+      align: false,
+    });
+    expect(config.language).toBe("th");
+    expect(config.align).toBe(false);
+  });
+
+  test("the rejection names the language and says how to proceed", () => {
+    // An error that only says "invalid" leaves the reader to guess.
+    try {
+      validateConfig({ collection: { name: "b", path: "./p" }, language: "hi" });
+      throw new Error("should have thrown");
+    } catch (e) {
+      const message = (e as Error).message;
+      expect(message).toContain("Hindi");
+      expect(message).toContain("align: false");
+      expect(message).toContain("English");
+    }
   });
 
   test("validateConfig fills defaults", () => {

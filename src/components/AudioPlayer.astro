@@ -46,6 +46,13 @@ const {
 const s = { ...defaultStrings, ...strings };
 
 const { enabled: highlightEnabled = true, trailLength = 4, clickToSeek = true } = highlight;
+
+// A post synthesised without alignment carries no word timings, so highlighting and
+// click-to-seek have nothing to act on. Rendering the toggle anyway would put an inert
+// control in front of the reader.
+const hasTimings = (audioEntry?.words?.length ?? 0) > 0;
+const highlightingAvailable = highlightEnabled && hasTimings;
+const resolvedControls = hasTimings ? controls : controls.filter((c) => c !== "highlight");
 const { enabled: dockEnabled = true } = dock;
 
 const playerId = id ?? `vocasync-player-${slug.replace(/[^a-z0-9]/gi, "-")}`;
@@ -65,8 +72,8 @@ const config = {
   options: {
     articleSelector,
     trailLength,
-    highlighting: highlightEnabled,
-    clickToSeek,
+    highlighting: highlightingAvailable,
+    clickToSeek: clickToSeek && hasTimings,
     autoScroll,
     dock: dockEnabled,
     exclusive,
@@ -133,7 +140,7 @@ const configJson = JSON.stringify(config).replace(/</g, "\\u003c");
   </div>
 
   <div class="vocasync-player__controls" data-state="ready" hidden>
-    {controls.map((control) => (
+    {resolvedControls.map((control) => (
       <Fragment>
         {control === "play" && (
           <button

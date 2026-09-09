@@ -1,10 +1,12 @@
-import { toAlignmentLocale, type VocaSyncClient, withPublishableKey } from "../api/client.js";
+import { type VocaSyncClient, withPublishableKey } from "../api/client.js";
 import { FormatSchema, LanguageSchema, type VocaSyncConfig, VoiceSchema } from "../config/index.js";
+import { canAlign, LANGUAGE_NAMES, toAlignmentLocale } from "../config/languages.js";
 import { getAudioEntry, loadAudioMap, saveAudioMap, setAudioEntry } from "../core/audio-map.js";
 import { loadContent } from "../core/content-loader.js";
 import { computeHash } from "../core/hash-manager.js";
 import { buildSpeechDocument } from "../core/speech-builder.js";
 import type {
+  AlignedWord,
   AudioArtifact,
   AudioMap,
   ContentItem,
@@ -25,7 +27,7 @@ type Progress = NonNullable<SyncOptions["onProgress"]>;
 function resolveParams(
   item: ContentItem,
   config: VocaSyncConfig
-): { voice: string; language: string; format: string } | { error: string } {
+): { voice: string; language: string; format: string; align: boolean } | { error: string } {
   const fm = item.frontmatter;
 
   let voice = config.synthesis.voice as string;
@@ -49,18 +51,50 @@ function resolveParams(
     format = parsed.data;
   }
 
-  return { voice, language, format };
+  let align = config.align;
+  if (fm.align !== undefined && fm.align !== null) {
+    if (typeof fm.align !== "boolean") {
+      return { error: `frontmatter align must be true or false, got "${String(fm.align)}"` };
+    }
+    align = fm.align;
+  }
+
+  // A post can ask for a language its own alignment cannot support. Caught here so the
+  // run stops before paying for synthesis, naming the post rather than failing later
+  // with an opaque rejection from the alignment endpoint.
+  if (align && !canAlign(language)) {
+    const name = LANGUAGE_NAMES[language] ?? language;
+    return {
+      error:
+        `${name} ("${language}") cannot be force-aligned. ` +
+        "Add `align: false` to this post's frontmatter to narrate it without highlighting.",
+    };
+  }
+
+  return { voice, language, format, align };
 }
 
-/** True when an existing entry is a complete v3 artifact matching the hash. */
-function isUpToDate(entry: AudioArtifact | undefined, contentHash: string): boolean {
-  return Boolean(
-    entry &&
-      entry.contentHash === contentHash &&
-      entry.synthesisProjectUuid &&
-      entry.alignmentProjectUuid &&
-      Array.isArray(entry.words)
-  );
+/**
+ * True when an existing entry is complete for what was asked of it.
+ *
+ * `align` is part of the question, not just the answer. Judging completeness by the
+ * presence of alignment fields alone would mark every deliberately unaligned entry as
+ * incomplete and re-synthesise it on every run -- paying for the same audio forever.
+ * Entries written before v2.1.0 carry no `aligned` flag and were always aligned, so
+ * their alignment fields stand in for it.
+ */
+function isUpToDate(
+  entry: AudioArtifact | undefined,
+  contentHash: string,
+  align: boolean
+): boolean {
+  if (!entry || entry.contentHash !== contentHash || !entry.synthesisProjectUuid) return false;
+
+  const wasAligned = entry.aligned ?? Boolean(entry.alignmentProjectUuid);
+  if (wasAligned !== align) return false;
+
+  // Only an aligned entry owes timings.
+  return align ? Boolean(entry.alignmentProjectUuid) && Array.isArray(entry.words) : true;
 }
 
 /** Orchestrate the full sync: load -> build -> two-POST synthesis+alignment -> persist. */
@@ -121,15 +155,16 @@ async function processItem(
       onProgress(`⚠ ${item.slug} - skipped: ${resolved.error}`, "warn");
       return { slug: item.slug, status: "error", error: resolved.error };
     }
-    const { voice, language, format } = resolved;
+    const { voice, language, format, align } = resolved;
 
     const speechDoc = await buildSpeechDocument(item, { math: config.math });
+    // `align` participates in the hash: flipping it changes what the artifact is.
     const contentHash = computeHash(
-      JSON.stringify([speechDoc.normalisedSpeechtext, voice, language, format])
+      JSON.stringify([speechDoc.normalisedSpeechtext, voice, language, format, align])
     );
 
     const existingEntry = getAudioEntry(audioMap, item.slug);
-    if (!force && isUpToDate(existingEntry, contentHash)) {
+    if (!force && isUpToDate(existingEntry, contentHash, align)) {
       onProgress(`⏭ ${item.slug} - unchanged`, "info");
       return { slug: item.slug, status: "unchanged" };
     }
@@ -138,7 +173,8 @@ async function processItem(
 
     if (dryRun) {
       onProgress(
-        `🔍 ${item.slug} - would ${status} (voice=${voice}, lang=${language}) [dry run]`,
+        `🔍 ${item.slug} - would ${status} (voice=${voice}, lang=${language}` +
+          `${align ? "" : ", no alignment"}) [dry run]`,
         "info"
       );
       return { slug: item.slug, status };
@@ -155,52 +191,73 @@ async function processItem(
       outputFormat: format,
     });
     const synthUuid = synthesis.projectUuid;
-    await client.pollUntilComplete(synthUuid, {
+    const synthesisStatus = await client.pollUntilComplete(synthUuid, {
       onProgress: (s) => onProgress(`   synthesis: ${s.status}`, "info"),
     });
     const synthesisPublishableKey = await client.createPublishableKey(synthUuid);
 
-    // 2. Alignment (explicit, client-supplied transcript) ---------------------
-    onProgress(`🔗 ${item.slug} - aligning...`, "info");
+    // 2. Alignment, unless this post asked to go without ---------------------
     const audioStreamUrl = client.streamUrl(synthUuid, "synthesis");
-    const { bytes: audioBytes, contentType } = await client.downloadBytes(
-      withPublishableKey(audioStreamUrl, synthesisPublishableKey)
-    );
-    const transcriptBytes = new TextEncoder().encode(speechDoc.normalisedSpeechtext);
-    const alignmentLocale = toAlignmentLocale(language);
 
-    const presign = await client.presignAlignment({
-      audioName: `synthesis.${format}`,
-      audioType: contentType,
-      audioSize: audioBytes.byteLength,
-      transcriptSize: transcriptBytes.byteLength,
-      language: alignmentLocale,
-    });
+    let alignUuid: string | undefined;
+    let alignmentPublishableKey: string | undefined;
+    let words: AlignedWord[] | undefined;
+    let effectiveDuration = 0;
 
-    await client.uploadToPresigned(presign.audio.uploadUrl, audioBytes, contentType);
-    await client.uploadToPresigned(presign.transcript.uploadUrl, transcriptBytes, "text/plain");
+    if (align) {
+      onProgress(`🔗 ${item.slug} - aligning...`, "info");
+      const { bytes: audioBytes, contentType } = await client.downloadBytes(
+        withPublishableKey(audioStreamUrl, synthesisPublishableKey)
+      );
+      const transcriptBytes = new TextEncoder().encode(speechDoc.normalisedSpeechtext);
+      const alignmentLocale = toAlignmentLocale(language);
+      if (!alignmentLocale) {
+        // resolveParams rejects this earlier; reaching here means the two disagree.
+        return {
+          slug: item.slug,
+          status: "error",
+          error: `no alignment locale for language "${language}"`,
+        };
+      }
 
-    await client.submitAlignment({
-      projectUuid: presign.projectUuid,
-      audioFileKey: presign.audio.key,
-      transcriptFileKey: presign.transcript.key,
-      audioFileSizeBytes: audioBytes.byteLength,
-      transcriptFileSizeBytes: transcriptBytes.byteLength,
-      language: alignmentLocale,
-      projectName: `astro-${item.slug}`,
-    });
-    const alignUuid = presign.projectUuid;
-    await client.pollUntilComplete(alignUuid, {
-      onProgress: (s) => onProgress(`   alignment: ${s.status}`, "info"),
-    });
-    const alignmentPublishableKey = await client.createPublishableKey(alignUuid);
+      const presign = await client.presignAlignment({
+        audioName: `synthesis.${format}`,
+        audioType: contentType,
+        audioSize: audioBytes.byteLength,
+        transcriptSize: transcriptBytes.byteLength,
+        language: alignmentLocale,
+      });
 
-    // 3. Fetch timings + persist ---------------------------------------------
-    const { words, duration } = await client.fetchAlignmentWords(
-      withPublishableKey(client.streamUrl(alignUuid, "alignment"), alignmentPublishableKey)
-    );
-    // The alignment stream may omit total duration; fall back to the last word's end.
-    const effectiveDuration = duration || (words.length ? words[words.length - 1].end : 0);
+      await client.uploadToPresigned(presign.audio.uploadUrl, audioBytes, contentType);
+      await client.uploadToPresigned(presign.transcript.uploadUrl, transcriptBytes, "text/plain");
+
+      await client.submitAlignment({
+        projectUuid: presign.projectUuid,
+        audioFileKey: presign.audio.key,
+        transcriptFileKey: presign.transcript.key,
+        audioFileSizeBytes: audioBytes.byteLength,
+        transcriptFileSizeBytes: transcriptBytes.byteLength,
+        language: alignmentLocale,
+        projectName: `astro-${item.slug}`,
+      });
+      alignUuid = presign.projectUuid;
+      await client.pollUntilComplete(alignUuid, {
+        onProgress: (st) => onProgress(`   alignment: ${st.status}`, "info"),
+      });
+      alignmentPublishableKey = await client.createPublishableKey(alignUuid);
+
+      // 3. Fetch timings ------------------------------------------------------
+      const aligned = await client.fetchAlignmentWords(
+        withPublishableKey(client.streamUrl(alignUuid, "alignment"), alignmentPublishableKey)
+      );
+      words = aligned.words;
+      // The alignment stream may omit total duration; fall back to the last word's end.
+      effectiveDuration = aligned.duration || (words.length ? words[words.length - 1].end : 0);
+    } else {
+      onProgress(`🔇 ${item.slug} - narration only (no word timings)`, "info");
+      // Without alignment the only duration available is what synthesis reported.
+      effectiveDuration = synthesisStatus.durationSeconds ?? 0;
+    }
 
     const now = new Date().toISOString();
     const artifact: AudioArtifact = {
@@ -211,6 +268,9 @@ async function processItem(
       synthesisProjectUuid: synthUuid,
       synthesisPublishableKey,
       audioUrl: audioStreamUrl,
+      // Recorded so a later sync can tell "deliberately unaligned" from "alignment
+      // never finished", instead of re-synthesising this post on every run.
+      aligned: align,
       alignmentProjectUuid: alignUuid,
       alignmentPublishableKey,
       words,
@@ -221,7 +281,11 @@ async function processItem(
     };
     setAudioEntry(audioMap, item.slug, artifact);
 
-    onProgress(`✅ ${item.slug} - ${status} complete (${words.length} words)`, "success");
+    onProgress(
+      `✅ ${item.slug} - ${status} complete` +
+        (words ? ` (${words.length} words)` : " (narration only)"),
+      "success"
+    );
     return { slug: item.slug, status, projectUuid: synthUuid };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);

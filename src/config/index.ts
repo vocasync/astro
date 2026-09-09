@@ -1,5 +1,11 @@
+export {
+  ALIGNMENT_LOCALES,
+  canAlign,
+  LANGUAGE_NAMES,
+  SYNTHESIS_LANGUAGES,
+  toAlignmentLocale,
+} from "./languages.js";
 export { loadVocaSyncConfig } from "./loader.js";
-
 export type {
   CollectionConfig,
   Format,

@@ -69,11 +69,25 @@ export interface AudioArtifact {
   synthesisPublishableKey: string;
   /** Stable audio stream URL (without the publishable key) */
   audioUrl: string;
-  /** Alignment project (source of the embedded timings) */
-  alignmentProjectUuid: string;
-  alignmentPublishableKey: string;
-  /** Word timings, indexed positionally by the rehype plugin's data-i */
-  words: AlignedWord[];
+  /**
+   * Whether this artifact was force-aligned.
+   *
+   * Recorded explicitly because absence cannot express intent: without it, an entry
+   * synthesised deliberately without alignment is indistinguishable from one whose
+   * alignment failed halfway, and `isUpToDate` would re-synthesise it on every sync --
+   * paying for the audio again, silently, forever.
+   *
+   * Absent on artifacts written before v2.1.0, which were always aligned.
+   */
+  aligned?: boolean;
+  /** Alignment project (source of the embedded timings). Absent when not aligned. */
+  alignmentProjectUuid?: string;
+  alignmentPublishableKey?: string;
+  /**
+   * Word timings, indexed positionally by the rehype plugin's data-i.
+   * Absent when the artifact was synthesised without alignment.
+   */
+  words?: AlignedWord[];
   /** Total audio duration in seconds */
   duration: number;
   /** Spoken form of each math expression, keyed by `${'d'|'i'}:${latex}`. */

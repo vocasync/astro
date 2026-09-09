@@ -79,7 +79,14 @@ const rehypeAudioWords: Plugin<[RehypeAudioWordsOptions?], Root> = (options = {}
     if (!audioMap) return;
 
     const slug = resolveSlug(file, collectionName);
-    if (!slug || !audioMap.entries[slug]) return; // only wrap posts that have audio
+    if (!slug) return;
+    const entry = audioMap.entries[slug];
+    if (!entry) return; // only wrap posts that have audio
+
+    // A post synthesised without alignment has no word stream, so `data-i` would index
+    // into nothing. Wrapping anyway would bloat the HTML and leave spans that look
+    // interactive but can never highlight.
+    if (!Array.isArray(entry.words) || entry.words.length === 0) return;
 
     let nextIndex = 0;
     const replacements: Array<{

@@ -6,11 +6,28 @@ import type { Element, Root } from "hast";
 import rehypeAudioWords from "../src/rehype/audio-words.js";
 
 const audioMapPath = join(tmpdir(), `vocasync-test-audio-map-${Date.now()}.json`);
+/** An entry with no timings, as `align: false` produces. */
+const unalignedMapPath = join(tmpdir(), `vocasync-test-unaligned-${Date.now()}.json`);
 
 beforeAll(() => {
+  // The plugin assigns data-i from its own tokenisation and never reads these, but
+  // their presence is what marks the post as alignable -- so they must be real.
+  const words = Array.from({ length: 40 }, (_, i) => ({
+    word: `w${i}`,
+    start: i * 0.3,
+    end: i * 0.3 + 0.25,
+  }));
   writeFileSync(
     audioMapPath,
-    JSON.stringify({ version: 3, updatedAt: "now", entries: { hello: { words: [] } } })
+    JSON.stringify({ version: 3, updatedAt: "now", entries: { hello: { words } } })
+  );
+  writeFileSync(
+    unalignedMapPath,
+    JSON.stringify({
+      version: 3,
+      updatedAt: "now",
+      entries: { hello: { aligned: false, synthesisProjectUuid: "syn-1" } },
+    })
   );
 });
 
@@ -177,5 +194,47 @@ describe("extraWordClass", () => {
     const tree = treeWith("I paid");
     run(tree);
     expect(classesOf(tree)).toEqual([["vocasync-word"], ["vocasync-word"]]);
+  });
+});
+
+describe("posts synthesised without alignment", () => {
+  test("are left unwrapped, because there are no timings to point at", () => {
+    // `data-i` indexes into a word stream that does not exist for these posts.
+    // Wrapping anyway would bloat the HTML and leave spans that look interactive but
+    // can never highlight.
+    const tree: Root = {
+      type: "root",
+      children: [
+        {
+          type: "element",
+          tagName: "p",
+          properties: {},
+          children: [{ type: "text", value: "I paid $50 today" }],
+        },
+      ],
+    };
+    const transformer = rehypeAudioWords({
+      audioMapPath: unalignedMapPath,
+      collectionName: "blog",
+    });
+    // @ts-expect-error unified plugin transformer signature (tree, file)
+    transformer(tree, { path: "/x/src/content/blog/hello.md" });
+    expect(collectSpans(tree)).toEqual([]);
+  });
+
+  test("an aligned post in the same run is still wrapped", () => {
+    const tree: Root = {
+      type: "root",
+      children: [
+        {
+          type: "element",
+          tagName: "p",
+          properties: {},
+          children: [{ type: "text", value: "I paid" }],
+        },
+      ],
+    };
+    run(tree);
+    expect(collectSpans(tree).length).toBe(2);
   });
 });
