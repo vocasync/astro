@@ -101,6 +101,30 @@ const { Content } = await render(post);
 </body></html>
 ASTRO
 
+  # A view-transitions page. The player boots from a hoisted module script, which
+  # the browser does not re-execute after a swap, so the router path is the one that
+  # regressed most easily. Astro 4 named the component ViewTransitions; 5+ renamed it
+  # to ClientRouter, so this page only exists from 5 onwards.
+  case "$ver" in
+    4.*) ;;
+    *)
+      cat > "$P/src/pages/router.astro" <<'ASTRO'
+---
+import { ClientRouter } from "astro:transitions";
+import AudioPlayer from "@vocasync/astro/components/AudioPlayer.astro";
+import audioMap from "../data/audio-map.json";
+import { getEntry, render } from "astro:content";
+const post = await getEntry("blog", "post");
+const { Content } = await render(post);
+---
+<html><head><ClientRouter /></head><body>
+<AudioPlayer slug="post" audioEntry={audioMap.entries.post} />
+<div data-article-body><Content /></div>
+</body></html>
+ASTRO
+      ;;
+  esac
+
   if ! (cd "$P" && bun install >/dev/null 2>&1); then
     printf '%-10s %-10s %-8s %-8s\n' "$ver" "INSTALL✗" "-" "-"; fail=1; continue
   fi
@@ -110,9 +134,17 @@ ASTRO
     fail=1; continue
   fi
 
+  if [ -f "$P/src/pages/router.astro" ]; then
+    if ! grep -q 'class="vocasync-player"' "$P/dist/router/index.html" 2>/dev/null; then
+      printf '%-10s %-10s %-8s %-8s\n' "$ver" "ROUTER✗" "-" "-"; fail=1; continue
+    fi
+  fi
+
   html="$P/dist/index.html"
   player=$(grep -c 'class="vocasync-player"' "$html" 2>/dev/null || echo 0)
-  spans=$(grep -o 'vocasync-word' "$html" 2>/dev/null | wc -l | tr -d ' ')
+  # Count rendered elements, not substring hits: the class name also appears inside
+  # the player's own selector strings, which would inflate the number.
+  spans=$(grep -o 'class="vocasync-word"' "$html" 2>/dev/null | wc -l | tr -d ' ')
   status="ok"
   [ "$player" -ge 1 ] || { status="✗"; fail=1; }
   [ "$spans"  -gt 0 ] || { status="✗"; fail=1; }
