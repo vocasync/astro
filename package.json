@@ -48,7 +48,8 @@
     "check:compat": "./scripts/astro-compat-matrix.sh",
     "prepublishOnly": "bun run build",
     "fixtures:smoke": "./scripts/build-smoke-fixture.sh",
-    "fixtures:check": "./scripts/build-smoke-fixture.sh --check"
+    "fixtures:check": "./scripts/build-smoke-fixture.sh --check",
+    "check:workflows": "./scripts/check-workflows.sh"
   },
   "keywords": [
     "astro",

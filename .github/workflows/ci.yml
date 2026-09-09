@@ -17,6 +17,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
+      - name: Validate workflows
+        run: bun run check:workflows
       - name: Lint
         run: bun run check
       - name: Typecheck
@@ -30,14 +32,13 @@ jobs:
       - name: Smoke fixture is current
         run: bun run fixtures:check
 
+  # `astro check` is the only gate covering .astro templates and their client scripts.
+  # @astrojs/language-server cannot run on the TypeScript this repo pins (the native
+  # 7.x compiler does not expose the programmatic API it needs), so this job installs
+  # TS 6 into its own disposable tree. Fold it into `gates` once Astro supports TS 7 --
+  # https://github.com/withastro/roadmap/discussions/1321
   astro-check:
     name: Typecheck .astro files
-    runs-on: ubuntu-latest
-    # `astro check` is the only gate covering .astro templates and their client
-    # scripts. @astrojs/language-server cannot run on the TypeScript this repo pins
-    # (the native 7.x compiler does not expose the programmatic API it needs), so this
-    # job installs TS 6 into its own disposable tree. Fold it into `gates` once Astro
-    # supports TS 7 -- https://github.com/withastro/roadmap/discussions/1321
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
