@@ -32,7 +32,10 @@ jobs:
         run: bun run check
 
       - name: Typecheck
-        run: bunx tsc --noEmit
+        run: bun run check:types
+
+      - name: Typecheck .astro files
+        run: bun run check:astro
 
       - name: Test
         run: bun test
@@ -40,7 +43,27 @@ jobs:
       - name: Build
         run: bun run build
 
+      # A prerelease tag (v2.0.0-beta.1) must NOT land on the `latest` dist-tag:
+      # npm defaults to `latest`, which would hand every `npm i @vocasync/astro`
+      # a beta. Derive the tag from the version and publish explicitly.
+      - name: Resolve npm dist-tag
+        id: disttag
+        run: |
+          VERSION="$(node -p "require('./package.json').version")"
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          if [ "$VERSION" != "$TAG_VERSION" ]; then
+            echo "::error::package.json version ($VERSION) does not match git tag ($TAG_VERSION)."
+            exit 1
+          fi
+          case "$VERSION" in
+            *-*) DIST_TAG="next" ;;
+            *)   DIST_TAG="latest" ;;
+          esac
+          echo "version=$VERSION"   >> "$GITHUB_OUTPUT"
+          echo "dist_tag=$DIST_TAG" >> "$GITHUB_OUTPUT"
+          echo "Publishing $VERSION to dist-tag '$DIST_TAG'."
+
       - name: Publish to npm
-        run: npm publish --access public --provenance
+        run: npm publish --access public --provenance --tag "${{ steps.disttag.outputs.dist_tag }}"
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
