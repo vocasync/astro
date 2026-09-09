@@ -1,0 +1,1007 @@
+{
+  "version": 3,
+  "updatedAt": "2026-05-25T02:48:16.181Z",
+  "entries": {
+    "post": {
+      "contentHash": "6ad54d26d5d09836963ca3cc1bfbf2b112c3063e9b02b21be3b2048d0943f4f9",
+      "voice": "onyx",
+      "language": "en",
+      "format": "mp3",
+      "synthesisProjectUuid": "019e5cff-2fbe-7000-8b04-6967f933881f",
+      "synthesisPublishableKey": "pk_05c17341263b7fca07307a8c064fed44",
+      "audioUrl": "https://vocasync.io/api/v1/stream/019e5cff-2fbe-7000-8b04-6967f933881f/synthesis",
+      "alignmentProjectUuid": "019e5cff-9eb5-7000-bc2f-6b316d1e15f6",
+      "alignmentPublishableKey": "pk_caffd9428b92a9b08ab84e152519c00f",
+      "words": [
+        {
+          "word": "welcome",
+          "start": 0.04,
+          "end": 0.34,
+          "duration": 0.30000000000000004
+        },
+        {
+          "word": "to",
+          "start": 0.34,
+          "end": 0.4,
+          "duration": 0.06
+        },
+        {
+          "word": "vocasync",
+          "start": 0.4,
+          "end": 1.07,
+          "duration": 0.67
+        },
+        {
+          "word": "this",
+          "start": 1.33,
+          "end": 1.5,
+          "duration": 0.16999999999999993
+        },
+        {
+          "word": "is",
+          "start": 1.5,
+          "end": 1.6,
+          "duration": 0.10000000000000009
+        },
+        {
+          "word": "a",
+          "start": 1.6,
+          "end": 1.66,
+          "duration": 0.05999999999999983
+        },
+        {
+          "word": "short",
+          "start": 1.66,
+          "end": 1.99,
+          "duration": 0.33000000000000007
+        },
+        {
+          "word": "demo",
+          "start": 1.99,
+          "end": 2.23,
+          "duration": 0.24
+        },
+        {
+          "word": "post",
+          "start": 2.23,
+          "end": 2.57,
+          "duration": 0.33999999999999986
+        },
+        {
+          "word": "to",
+          "start": 2.57,
+          "end": 2.63,
+          "duration": 0.06000000000000005
+        },
+        {
+          "word": "show",
+          "start": 2.63,
+          "end": 2.8,
+          "duration": 0.16999999999999993
+        },
+        {
+          "word": "you",
+          "start": 2.8,
+          "end": 2.96,
+          "duration": 0.16000000000000014
+        },
+        {
+          "word": "how",
+          "start": 2.96,
+          "end": 3.15,
+          "duration": 0.18999999999999995
+        },
+        {
+          "word": "easy",
+          "start": 3.15,
+          "end": 3.46,
+          "duration": 0.31000000000000005
+        },
+        {
+          "word": "it",
+          "start": 3.46,
+          "end": 3.54,
+          "duration": 0.08000000000000007
+        },
+        {
+          "word": "is",
+          "start": 3.54,
+          "end": 3.69,
+          "duration": 0.1499999999999999
+        },
+        {
+          "word": "to",
+          "start": 3.69,
+          "end": 3.86,
+          "duration": 0.16999999999999993
+        },
+        {
+          "word": "add",
+          "start": 3.86,
+          "end": 4.01,
+          "duration": 0.1499999999999999
+        },
+        {
+          "word": "audio",
+          "start": 4.01,
+          "end": 4.37,
+          "duration": 0.3600000000000003
+        },
+        {
+          "word": "narration",
+          "start": 4.37,
+          "end": 4.91,
+          "duration": 0.54
+        },
+        {
+          "word": "to",
+          "start": 4.91,
+          "end": 5.03,
+          "duration": 0.1200000000000001
+        },
+        {
+          "word": "your",
+          "start": 5.03,
+          "end": 5.15,
+          "duration": 0.1200000000000001
+        },
+        {
+          "word": "astro",
+          "start": 5.15,
+          "end": 5.53,
+          "duration": 0.3799999999999999
+        },
+        {
+          "word": "blog",
+          "start": 5.53,
+          "end": 5.94,
+          "duration": 0.41000000000000014
+        },
+        {
+          "word": "what",
+          "start": 6.51,
+          "end": 6.67,
+          "duration": 0.16000000000000014
+        },
+        {
+          "word": "is",
+          "start": 6.67,
+          "end": 6.79,
+          "duration": 0.1200000000000001
+        },
+        {
+          "word": "vocasync",
+          "start": 6.79,
+          "end": 7.47,
+          "duration": 0.6799999999999997
+        },
+        {
+          "word": "vocasync",
+          "start": 8.27,
+          "end": 8.77,
+          "duration": 0.5
+        },
+        {
+          "word": "turns",
+          "start": 8.77,
+          "end": 9.04,
+          "duration": 0.2699999999999996
+        },
+        {
+          "word": "your",
+          "start": 9.04,
+          "end": 9.14,
+          "duration": 0.10000000000000142
+        },
+        {
+          "word": "written",
+          "start": 9.14,
+          "end": 9.44,
+          "duration": 0.29999999999999893
+        },
+        {
+          "word": "content",
+          "start": 9.44,
+          "end": 9.91,
+          "duration": 0.47000000000000064
+        },
+        {
+          "word": "into",
+          "start": 9.91,
+          "end": 10.12,
+          "duration": 0.20999999999999908
+        },
+        {
+          "word": "narrated",
+          "start": 10.12,
+          "end": 10.6,
+          "duration": 0.4800000000000004
+        },
+        {
+          "word": "audio",
+          "start": 10.6,
+          "end": 10.98,
+          "duration": 0.3800000000000008
+        },
+        {
+          "word": "with",
+          "start": 10.98,
+          "end": 11.18,
+          "duration": 0.1999999999999993
+        },
+        {
+          "word": "word",
+          "start": 11.18,
+          "end": 11.47,
+          "duration": 0.2900000000000009
+        },
+        {
+          "word": "level",
+          "start": 11.47,
+          "end": 11.73,
+          "duration": 0.2599999999999998
+        },
+        {
+          "word": "synchronization",
+          "start": 11.73,
+          "end": 12.67,
+          "duration": 0.9399999999999995
+        },
+        {
+          "word": "as",
+          "start": 13.29,
+          "end": 13.45,
+          "duration": 0.16000000000000014
+        },
+        {
+          "word": "listeners",
+          "start": 13.45,
+          "end": 13.88,
+          "duration": 0.4300000000000015
+        },
+        {
+          "word": "play",
+          "start": 13.88,
+          "end": 14.12,
+          "duration": 0.23999999999999844
+        },
+        {
+          "word": "the",
+          "start": 14.12,
+          "end": 14.25,
+          "duration": 0.13000000000000078
+        },
+        {
+          "word": "audio",
+          "start": 14.25,
+          "end": 14.74,
+          "duration": 0.4900000000000002
+        },
+        {
+          "word": "each",
+          "start": 14.77,
+          "end": 15.02,
+          "duration": 0.25
+        },
+        {
+          "word": "word",
+          "start": 15.02,
+          "end": 15.25,
+          "duration": 0.23000000000000043
+        },
+        {
+          "word": "highlights",
+          "start": 15.25,
+          "end": 15.76,
+          "duration": 0.5099999999999998
+        },
+        {
+          "word": "in",
+          "start": 15.76,
+          "end": 15.88,
+          "duration": 0.120000000000001
+        },
+        {
+          "word": "real",
+          "start": 15.88,
+          "end": 16.09,
+          "duration": 0.20999999999999908
+        },
+        {
+          "word": "time",
+          "start": 16.09,
+          "end": 16.559999,
+          "duration": 0.4699990000000014
+        },
+        {
+          "word": "creating",
+          "start": 16.73,
+          "end": 17.139999,
+          "duration": 0.4099989999999991
+        },
+        {
+          "word": "a",
+          "start": 17.139999,
+          "end": 17.190001,
+          "duration": 0.050001999999999214
+        },
+        {
+          "word": "karaoke",
+          "start": 17.190001,
+          "end": 17.73,
+          "duration": 0.5399990000000017
+        },
+        {
+          "word": "style",
+          "start": 17.73,
+          "end": 18.200001,
+          "duration": 0.4700009999999999
+        },
+        {
+          "word": "reading",
+          "start": 18.200001,
+          "end": 18.49,
+          "duration": 0.2899989999999981
+        },
+        {
+          "word": "experience",
+          "start": 18.49,
+          "end": 19.25,
+          "duration": 0.7600000000000016
+        },
+        {
+          "word": "key",
+          "start": 19.879999,
+          "end": 20.049999,
+          "duration": 0.16999999999999815
+        },
+        {
+          "word": "features",
+          "start": 20.049999,
+          "end": 20.65,
+          "duration": 0.6000009999999989
+        },
+        {
+          "word": "the",
+          "start": 21.219999,
+          "end": 21.35,
+          "duration": 0.13000100000000003
+        },
+        {
+          "word": "integration",
+          "start": 21.35,
+          "end": 21.84,
+          "duration": 0.48999999999999844
+        },
+        {
+          "word": "offers",
+          "start": 21.84,
+          "end": 22.17,
+          "duration": 0.33000000000000185
+        },
+        {
+          "word": "several",
+          "start": 22.17,
+          "end": 22.540001,
+          "duration": 0.37000099999999847
+        },
+        {
+          "word": "powerful",
+          "start": 22.540001,
+          "end": 23.059999,
+          "duration": 0.5199980000000011
+        },
+        {
+          "word": "features",
+          "start": 23.059999,
+          "end": 23.540001,
+          "duration": 0.48000199999999893
+        },
+        {
+          "word": "out",
+          "start": 23.540001,
+          "end": 23.68,
+          "duration": 0.13999899999999954
+        },
+        {
+          "word": "of",
+          "start": 23.68,
+          "end": 23.75,
+          "duration": 0.07000000000000028
+        },
+        {
+          "word": "the",
+          "start": 23.75,
+          "end": 23.809999,
+          "duration": 0.059999000000001246
+        },
+        {
+          "word": "box",
+          "start": 23.809999,
+          "end": 24.379999,
+          "duration": 0.5700000000000003
+        },
+        {
+          "word": "natural",
+          "start": 24.98,
+          "end": 25.43,
+          "duration": 0.4499999999999993
+        },
+        {
+          "word": "voices",
+          "start": 25.43,
+          "end": 25.91,
+          "duration": 0.4800000000000004
+        },
+        {
+          "word": "powered",
+          "start": 25.91,
+          "end": 26.32,
+          "duration": 0.41000000000000014
+        },
+        {
+          "word": "by",
+          "start": 26.32,
+          "end": 26.440001,
+          "duration": 0.12000099999999847
+        },
+        {
+          "word": "advanced",
+          "start": 26.440001,
+          "end": 26.969999,
+          "duration": 0.5299980000000026
+        },
+        {
+          "word": "text",
+          "start": 26.969999,
+          "end": 27.280001,
+          "duration": 0.3100019999999972
+        },
+        {
+          "word": "to",
+          "start": 27.280001,
+          "end": 27.34,
+          "duration": 0.059999000000001246
+        },
+        {
+          "word": "speech",
+          "start": 27.34,
+          "end": 27.870001,
+          "duration": 0.5300009999999986
+        },
+        {
+          "word": "word",
+          "start": 28.959999,
+          "end": 29.16,
+          "duration": 0.20000100000000032
+        },
+        {
+          "word": "highlighting",
+          "start": 29.16,
+          "end": 29.690001,
+          "duration": 0.5300009999999986
+        },
+        {
+          "word": "that",
+          "start": 29.690001,
+          "end": 29.84,
+          "duration": 0.1499990000000011
+        },
+        {
+          "word": "follows",
+          "start": 29.84,
+          "end": 30.379999,
+          "duration": 0.5399990000000017
+        },
+        {
+          "word": "along",
+          "start": 30.379999,
+          "end": 30.77,
+          "duration": 0.39000099999999804
+        },
+        {
+          "word": "with",
+          "start": 30.77,
+          "end": 30.950001,
+          "duration": 0.18000100000000074
+        },
+        {
+          "word": "playback",
+          "start": 30.950001,
+          "end": 31.620001,
+          "duration": 0.6699999999999982
+        },
+        {
+          "word": "keyboard",
+          "start": 31.940001,
+          "end": 32.310001,
+          "duration": 0.370000000000001
+        },
+        {
+          "word": "shortcuts",
+          "start": 32.310001,
+          "end": 32.810001,
+          "duration": 0.5
+        },
+        {
+          "word": "for",
+          "start": 32.810001,
+          "end": 32.959999,
+          "duration": 0.14999800000000363
+        },
+        {
+          "word": "accessible",
+          "start": 32.959999,
+          "end": 33.459999,
+          "duration": 0.5
+        },
+        {
+          "word": "navigation",
+          "start": 33.459999,
+          "end": 34.240002,
+          "duration": 0.7800029999999936
+        },
+        {
+          "word": "mini",
+          "start": 35.200001,
+          "end": 35.43,
+          "duration": 0.2299989999999994
+        },
+        {
+          "word": "player",
+          "start": 35.43,
+          "end": 35.790001,
+          "duration": 0.3600009999999969
+        },
+        {
+          "word": "that",
+          "start": 35.790001,
+          "end": 35.950001,
+          "duration": 0.1600000000000037
+        },
+        {
+          "word": "sticks",
+          "start": 35.950001,
+          "end": 36.360001,
+          "duration": 0.4099999999999966
+        },
+        {
+          "word": "when",
+          "start": 36.360001,
+          "end": 36.490002,
+          "duration": 0.13000100000000003
+        },
+        {
+          "word": "scrolling",
+          "start": 36.490002,
+          "end": 37.130001,
+          "duration": 0.6399990000000031
+        },
+        {
+          "word": "fifty",
+          "start": 38.25,
+          "end": 38.59,
+          "duration": 0.3400000000000034
+        },
+        {
+          "word": "seven",
+          "start": 38.59,
+          "end": 38.950001,
+          "duration": 0.3600009999999969
+        },
+        {
+          "word": "languages",
+          "start": 38.950001,
+          "end": 39.580002,
+          "duration": 0.630001
+        },
+        {
+          "word": "supported",
+          "start": 39.580002,
+          "end": 40.16,
+          "duration": 0.5799979999999962
+        },
+        {
+          "word": "for",
+          "start": 40.16,
+          "end": 40.290001,
+          "duration": 0.13000100000000003
+        },
+        {
+          "word": "global",
+          "start": 40.290001,
+          "end": 40.709999,
+          "duration": 0.41999800000000675
+        },
+        {
+          "word": "reach",
+          "start": 40.709999,
+          "end": 41.189999,
+          "duration": 0.4799999999999969
+        },
+        {
+          "word": "try",
+          "start": 41.619999,
+          "end": 41.849998,
+          "duration": 0.2299989999999994
+        },
+        {
+          "word": "it",
+          "start": 41.849998,
+          "end": 41.970001,
+          "duration": 0.12000300000000408
+        },
+        {
+          "word": "out",
+          "start": 41.970001,
+          "end": 42.23,
+          "duration": 0.25999899999999343
+        },
+        {
+          "word": "press",
+          "start": 42.66,
+          "end": 42.880001,
+          "duration": 0.22000100000000344
+        },
+        {
+          "word": "the",
+          "start": 42.880001,
+          "end": 42.990002,
+          "duration": 0.1100009999999969
+        },
+        {
+          "word": "play",
+          "start": 42.990002,
+          "end": 43.220001,
+          "duration": 0.2299990000000065
+        },
+        {
+          "word": "button",
+          "start": 43.220001,
+          "end": 43.509998,
+          "duration": 0.2899969999999996
+        },
+        {
+          "word": "above",
+          "start": 43.509998,
+          "end": 43.889999,
+          "duration": 0.38000100000000003
+        },
+        {
+          "word": "to",
+          "start": 43.889999,
+          "end": 43.990002,
+          "duration": 0.10000299999999385
+        },
+        {
+          "word": "hear",
+          "start": 43.990002,
+          "end": 44.18,
+          "duration": 0.18999800000000278
+        },
+        {
+          "word": "this",
+          "start": 44.18,
+          "end": 44.349998,
+          "duration": 0.16999799999999965
+        },
+        {
+          "word": "post",
+          "start": 44.349998,
+          "end": 44.700001,
+          "duration": 0.35000300000000095
+        },
+        {
+          "word": "narrated",
+          "start": 44.700001,
+          "end": 45.220001,
+          "duration": 0.5200000000000031
+        },
+        {
+          "word": "watch",
+          "start": 45.91,
+          "end": 46.18,
+          "duration": 0.2700000000000031
+        },
+        {
+          "word": "as",
+          "start": 46.18,
+          "end": 46.34,
+          "duration": 0.1600000000000037
+        },
+        {
+          "word": "each",
+          "start": 46.34,
+          "end": 46.560001,
+          "duration": 0.22000099999999634
+        },
+        {
+          "word": "word",
+          "start": 46.560001,
+          "end": 46.790001,
+          "duration": 0.22999999999999687
+        },
+        {
+          "word": "highlights",
+          "start": 46.790001,
+          "end": 47.299999,
+          "duration": 0.5099980000000031
+        },
+        {
+          "word": "in",
+          "start": 47.299999,
+          "end": 47.400002,
+          "duration": 0.10000300000000095
+        },
+        {
+          "word": "sync",
+          "start": 47.400002,
+          "end": 47.759998,
+          "duration": 0.3599960000000024
+        },
+        {
+          "word": "with",
+          "start": 47.759998,
+          "end": 47.880001,
+          "duration": 0.12000299999999697
+        },
+        {
+          "word": "the",
+          "start": 47.880001,
+          "end": 48,
+          "duration": 0.11999899999999997
+        },
+        {
+          "word": "audio",
+          "start": 48,
+          "end": 48.52,
+          "duration": 0.5200000000000031
+        },
+        {
+          "word": "you",
+          "start": 48.700001,
+          "end": 48.799999,
+          "duration": 0.09999799999999937
+        },
+        {
+          "word": "can",
+          "start": 48.799999,
+          "end": 48.939999,
+          "duration": 0.14000000000000057
+        },
+        {
+          "word": "adjust",
+          "start": 48.939999,
+          "end": 49.34,
+          "duration": 0.40000100000000316
+        },
+        {
+          "word": "the",
+          "start": 49.34,
+          "end": 49.41,
+          "duration": 0.06999999999999318
+        },
+        {
+          "word": "speed",
+          "start": 49.41,
+          "end": 49.990002,
+          "duration": 0.5800020000000004
+        },
+        {
+          "word": "toggle",
+          "start": 50.23,
+          "end": 50.57,
+          "duration": 0.3400000000000034
+        },
+        {
+          "word": "highlighting",
+          "start": 50.57,
+          "end": 51.07,
+          "duration": 0.5
+        },
+        {
+          "word": "on",
+          "start": 51.07,
+          "end": 51.27,
+          "duration": 0.20000000000000284
+        },
+        {
+          "word": "or",
+          "start": 51.27,
+          "end": 51.41,
+          "duration": 0.13999999999999346
+        },
+        {
+          "word": "off",
+          "start": 51.41,
+          "end": 51.779999,
+          "duration": 0.36999899999999997
+        },
+        {
+          "word": "and",
+          "start": 51.889999,
+          "end": 52.02,
+          "duration": 0.13000100000000003
+        },
+        {
+          "word": "use",
+          "start": 52.02,
+          "end": 52.200001,
+          "duration": 0.1800009999999972
+        },
+        {
+          "word": "keyboard",
+          "start": 52.200001,
+          "end": 52.630001,
+          "duration": 0.4299999999999997
+        },
+        {
+          "word": "shortcuts",
+          "start": 52.630001,
+          "end": 53.23,
+          "duration": 0.5999989999999968
+        },
+        {
+          "word": "like",
+          "start": 53.23,
+          "end": 53.419998,
+          "duration": 0.18999800000000278
+        },
+        {
+          "word": "space",
+          "start": 53.419998,
+          "end": 53.84,
+          "duration": 0.42000200000000376
+        },
+        {
+          "word": "to",
+          "start": 53.84,
+          "end": 53.950001,
+          "duration": 0.1100009999999969
+        },
+        {
+          "word": "play",
+          "start": 53.950001,
+          "end": 54.290001,
+          "duration": 0.3399999999999963
+        },
+        {
+          "word": "or",
+          "start": 54.290001,
+          "end": 54.439999,
+          "duration": 0.14999800000000363
+        },
+        {
+          "word": "pause",
+          "start": 54.439999,
+          "end": 55.009998,
+          "duration": 0.5699990000000028
+        },
+        {
+          "word": "that's",
+          "start": 55.990002,
+          "end": 56.200001,
+          "duration": 0.20999900000000338
+        },
+        {
+          "word": "all",
+          "start": 56.200001,
+          "end": 56.360001,
+          "duration": 0.1599999999999966
+        },
+        {
+          "word": "for",
+          "start": 56.360001,
+          "end": 56.52,
+          "duration": 0.15999900000000622
+        },
+        {
+          "word": "this",
+          "start": 56.52,
+          "end": 56.700001,
+          "duration": 0.1800009999999972
+        },
+        {
+          "word": "quick",
+          "start": 56.700001,
+          "end": 56.990002,
+          "duration": 0.2900009999999966
+        },
+        {
+          "word": "intro",
+          "start": 56.990002,
+          "end": 57.439999,
+          "duration": 0.4499970000000033
+        },
+        {
+          "word": "check",
+          "start": 57.59,
+          "end": 57.830002,
+          "duration": 0.24000199999999694
+        },
+        {
+          "word": "out",
+          "start": 57.830002,
+          "end": 58.080002,
+          "duration": 0.25
+        },
+        {
+          "word": "the",
+          "start": 58.130001,
+          "end": 58.259998,
+          "duration": 0.12999700000000303
+        },
+        {
+          "word": "longer",
+          "start": 58.259998,
+          "end": 58.720001,
+          "duration": 0.4600030000000004
+        },
+        {
+          "word": "post",
+          "start": 58.720001,
+          "end": 59.110001,
+          "duration": 0.38999999999999346
+        },
+        {
+          "word": "for",
+          "start": 59.110001,
+          "end": 59.279999,
+          "duration": 0.16999799999999965
+        },
+        {
+          "word": "a",
+          "start": 59.279999,
+          "end": 59.330002,
+          "duration": 0.050003000000003794
+        },
+        {
+          "word": "deeper",
+          "start": 59.330002,
+          "end": 59.700001,
+          "duration": 0.36999899999999997
+        },
+        {
+          "word": "dive",
+          "start": 59.700001,
+          "end": 60.040001,
+          "duration": 0.3399999999999963
+        },
+        {
+          "word": "into",
+          "start": 60.040001,
+          "end": 60.209999,
+          "duration": 0.16999800000000675
+        },
+        {
+          "word": "the",
+          "start": 60.209999,
+          "end": 60.299999,
+          "duration": 0.0899999999999963
+        },
+        {
+          "word": "technology",
+          "start": 60.299999,
+          "end": 60.990002,
+          "duration": 0.6900029999999973
+        },
+        {
+          "word": "behind",
+          "start": 60.990002,
+          "end": 61.419998,
+          "duration": 0.4299960000000027
+        },
+        {
+          "word": "vocasync",
+          "start": 61.419998,
+          "end": 62.060001,
+          "duration": 0.6400030000000001
+        }
+      ],
+      "duration": 62.060001,
+      "mathSpeech": {},
+      "createdAt": "2026-02-02T15:56:46.921Z",
+      "updatedAt": "2026-05-25T02:39:16.266Z"
+    }
+  }
+}
