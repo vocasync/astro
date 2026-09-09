@@ -1,0 +1,13 @@
+/**
+ * Layer order for every VocaSync stylesheet.
+ *
+ * Import this FIRST if you care about deterministic ordering. Layer precedence is
+ * fixed by the order layer names are first seen, and an @import elsewhere in your app
+ * could otherwise register them later than your own layers -- which would let our
+ * rules outrank utilities that should win.
+ *
+ * Everything we ship lives in a layer, so any unlayered rule of yours beats it
+ * regardless of specificity. Selectors are additionally wrapped in :where(), which
+ * drops their specificity to zero, so even a layered rule of yours wins.
+ */
+@layer vocasync.tokens, vocasync.base, vocasync.variants;

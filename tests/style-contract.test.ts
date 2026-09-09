@@ -6,19 +6,21 @@ import { join } from "node:path";
  * The style contract.
  *
  * The player's appearance is a public API: consumers theme it through
- * `--vocasync-*` custom properties and target `.vocasync-*` classes. Nothing else
- * checks that surface -- CSS is not typechecked and the component is not covered by
- * unit tests -- so declarations rot silently. Three had already rotted when these
- * tests were written: two tokens declared but never read, and one rule styling a
- * class no code emits.
+ * `--vocasync-*` custom properties and target `.vocasync-*` classes. CSS is not
+ * typechecked and browsers report nothing when a token resolves to `unset`, so
+ * without these tests the surface rots silently -- and it had: two tokens declared
+ * and never read, one rule styling a class nothing emits.
  *
- * These tests assert both directions. A token that is declared but never consumed is
- * a promise the player does not keep; a token consumed but never declared renders as
- * `unset`, which is invisible until someone reports a colourless player.
+ * These also pin the guarantees v2 makes about the cascade. `@layer` alone is not
+ * enough: layer precedence is fixed by the order layer names are first seen, so a
+ * consumer whose Tailwind import registers its layers before ours would find our
+ * rules outranking their utilities. Every selector is therefore ALSO wrapped in
+ * `:where()`, which drops it to zero specificity, making the outcome independent of
+ * import order. A rule that escapes either mechanism is a bug, hence the assertions.
  */
 
 const ROOT = join(import.meta.dir, "..");
-const CSS = join(ROOT, "src/styles/variables.css");
+const STYLES = join(ROOT, "src/styles");
 
 function walk(dir: string, out: string[] = []): string[] {
   for (const name of readdirSync(dir)) {
@@ -29,36 +31,38 @@ function walk(dir: string, out: string[] = []): string[] {
   return out;
 }
 
-const sourceFiles = walk(join(ROOT, "src")).filter((f) => /\.(ts|astro|css)$/.test(f));
+const cssFiles = walk(STYLES).filter((f) => f.endsWith(".css"));
+const cssByFile = new Map(cssFiles.map((f) => [f, readFileSync(f, "utf8")]));
+const allCss = [...cssByFile.values()].join("\n");
+
+const sourceFiles = walk(join(ROOT, "src")).filter((f) => /\.(ts|astro)$/.test(f));
 const sources = new Map(sourceFiles.map((f) => [f, readFileSync(f, "utf8")]));
-const css = readFileSync(CSS, "utf8");
 
-/** `--vocasync-x: value` in a declaration position. */
-function declaredTokens(text: string): Set<string> {
-  const out = new Set<string>();
-  for (const m of text.matchAll(/^\s*(--vocasync-[a-z0-9-]+)\s*:/gm)) out.add(m[1]);
-  return out;
-}
+const rel = (f: string) => f.slice(ROOT.length + 1);
 
-/** `var(--vocasync-x)` anywhere, including inside color-mix()/calc(). */
-function consumedTokens(text: string): Set<string> {
-  const out = new Set<string>();
-  for (const m of text.matchAll(/var\(\s*(--vocasync-[a-z0-9-]+)/g)) out.add(m[1]);
-  return out;
-}
+/** Strip comments so prose never counts as code. */
+const stripComments = (css: string) => css.replace(/\/\*[\s\S]*?\*\//g, "");
 
 describe("token contract", () => {
-  const declared = declaredTokens(css);
-  const consumed = new Set<string>();
-  for (const text of sources.values()) {
-    for (const t of consumedTokens(text)) consumed.add(t);
+  const declared = new Set<string>();
+  for (const m of stripComments(allCss).matchAll(/^\s*(--vocasync-[a-z0-9-]+)\s*:/gm)) {
+    declared.add(m[1]);
   }
 
-  test("the stylesheet declares tokens at all", () => {
-    expect(declared.size).toBeGreaterThan(20);
+  const consumed = new Set<string>();
+  for (const text of [...cssByFile.values(), ...sources.values()]) {
+    for (const m of stripComments(text).matchAll(/var\(\s*(--vocasync-[a-z0-9-]+)/g)) {
+      consumed.add(m[1]);
+    }
+  }
+
+  test("the stylesheets declare a substantial token surface", () => {
+    expect(declared.size).toBeGreaterThan(40);
   });
 
   test("every consumed token is declared", () => {
+    // An undeclared token resolves to `unset`: a transparent background or an
+    // inherited colour, with nothing reported anywhere.
     const undeclared = [...consumed].filter((t) => !declared.has(t)).sort();
     expect(undeclared).toEqual([]);
   });
@@ -67,25 +71,159 @@ describe("token contract", () => {
     const dead = [...declared].filter((t) => !consumed.has(t)).sort();
     expect(dead).toEqual([]);
   });
+
+  test("the four seeds are registered so a bad value cannot break the component", () => {
+    // @property gives each seed a typed fallback. Assign a gradient to an
+    // unregistered custom property and every rule using it resolves to `unset`.
+    const registered = new Set(
+      [...allCss.matchAll(/@property\s+(--vocasync-[a-z0-9-]+)/g)].map((m) => m[1])
+    );
+    expect([...registered].sort()).toEqual([
+      "--vocasync-accent",
+      "--vocasync-highlight",
+      "--vocasync-surface",
+      "--vocasync-text",
+    ]);
+    for (const seed of registered) {
+      const block = allCss.slice(allCss.indexOf(`@property ${seed}`));
+      expect(block.slice(0, 160)).toContain("initial-value");
+    }
+  });
+});
+
+describe("cascade contract", () => {
+  test("no rule uses !important", () => {
+    for (const [file, css] of cssByFile) {
+      expect({ file: rel(file), important: stripComments(css).includes("!important") }).toEqual({
+        file: rel(file),
+        important: false,
+      });
+    }
+  });
+
+  test("every stylesheet that styles anything declares the layer order", () => {
+    for (const [file, css] of cssByFile) {
+      if (!/\{/.test(stripComments(css).replace(/@import[^;]+;/g, ""))) continue;
+      if (rel(file).endsWith("vocasync.css")) continue; // the barrel only imports
+      expect({ file: rel(file), declares: css.includes("@layer vocasync.tokens,") }).toEqual({
+        file: rel(file),
+        declares: true,
+      });
+    }
+  });
+
+  test("every class selector is wrapped in :where()", () => {
+    // A bare `.vocasync-thing` would carry real specificity and could beat a
+    // consumer's own rule inside the same layer.
+    const offenders: string[] = [];
+    for (const [file, css] of cssByFile) {
+      const body = stripComments(css);
+      for (const m of body.matchAll(/(^|[\s,>+~(])(\.vocasync-[a-z0-9_-]+)/g)) {
+        const before = body.slice(Math.max(0, m.index - 40), m.index + m[0].length);
+        if (!/:where\([^)]*$/.test(before)) offenders.push(`${rel(file)}: ${m[2]}`);
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+
+  test("layered rules are the only ones that style the player", () => {
+    for (const [file, css] of cssByFile) {
+      const body = stripComments(css).replace(/@import[^;]+;/g, "");
+      if (!body.includes(".vocasync-")) continue;
+      // Everything selecting a vocasync class must sit inside an @layer block.
+      const layerless = body.split("@layer")[0];
+      expect({ file: rel(file), strayRules: /\.vocasync-[a-z-]+[^;]*\{/.test(layerless) }).toEqual({
+        file: rel(file),
+        strayRules: false,
+      });
+    }
+  });
+});
+
+describe("scheme contract", () => {
+  const tokens = readFileSync(join(STYLES, "tokens.css"), "utf8");
+
+  /**
+   * Both of these were real bugs, caught in a browser rather than here: happy-dom
+   * ignores @layer entirely, so nothing in this suite can evaluate the cascade. They
+   * are pinned structurally instead, because the failure is silent -- the player
+   * simply stays light while the site goes dark.
+   */
+
+  test("dark-scheme selectors carry real specificity", () => {
+    // Wrapped in :where() they score zero and lose to the `:root` block declaring the
+    // light values, so adding `.dark` did nothing at all.
+    const darkBlocks = [
+      ...tokens.matchAll(
+        /^\s*(\[data-vocasync-scheme="dark"\]|\.dark|\[data-theme="dark"\]|\[data-mode="dark"\])/gm
+      ),
+    ];
+    expect(darkBlocks.length).toBeGreaterThanOrEqual(4);
+    expect(tokens).not.toContain(':where([data-vocasync-scheme="dark"]');
+    expect(tokens).not.toMatch(/:where\([^)]*\.dark[^)]*\)/);
+  });
+
+  test("the derivation runs after the scheme blocks", () => {
+    // Derived tokens must recompute from whichever seeds won, or a custom seed only
+    // half-applies in dark mode: the surface changes, the borders do not.
+    const firstDark = tokens.indexOf("@media (prefers-color-scheme: dark)");
+    const classDark = tokens.indexOf('\n  [data-vocasync-scheme="dark"]');
+    const derivation = tokens.indexOf("@supports (color: color-mix");
+    const contrast = tokens.indexOf("@supports (color: oklch(from red");
+    expect(firstDark).toBeGreaterThan(-1);
+    expect(classDark).toBeGreaterThan(firstDark);
+    expect(derivation).toBeGreaterThan(classDark);
+    expect(contrast).toBeGreaterThan(classDark);
+  });
+
+  test("an explicit light signal opts out of the OS dark preference", () => {
+    const media = tokens.slice(tokens.indexOf("@media (prefers-color-scheme: dark)"));
+    for (const signal of [
+      '[data-vocasync-scheme="light"]',
+      ".light",
+      '[data-theme="light"]',
+      '[data-mode="light"]',
+    ]) {
+      expect(media.slice(0, 400)).toContain(signal);
+    }
+  });
+
+  test("every scheme block sets the seeds, not just derived colours", () => {
+    // Setting only derived values would leave the seeds light, so anything deriving
+    // from them at runtime would disagree with the rest of the player.
+    const seeds = [
+      "--vocasync-accent:",
+      "--vocasync-surface:",
+      "--vocasync-text:",
+      "--vocasync-highlight:",
+    ];
+    const blocks = tokens
+      .split(/(?=@media \(prefers-color-scheme: dark\)|\n {2}\[data-vocasync-scheme="dark"\])/)
+      .slice(1);
+    expect(blocks.length).toBe(2);
+    for (const block of blocks) {
+      for (const seed of seeds) expect(block).toContain(seed);
+    }
+  });
 });
 
 describe("class contract", () => {
-  /** Class selectors the stylesheet actually styles. */
   const styled = new Set<string>();
-  for (const m of css.matchAll(/\.(vocasync-[a-z0-9_-]+)/g)) styled.add(m[1]);
+  for (const m of stripComments(allCss).matchAll(/\.(vocasync-[a-z0-9_-]+)/g)) styled.add(m[1]);
 
-  /** Every `vocasync-*` token appearing anywhere in source, CSS excluded. */
   const referenced = new Set<string>();
-  for (const [file, text] of sources) {
-    if (file.endsWith(".css")) continue;
-    for (const m of text.matchAll(/["'`\s.](vocasync-[a-z0-9_-]+)/g)) referenced.add(m[1]);
+  for (const text of sources.values()) {
+    for (const m of stripComments(text).matchAll(/["'`\s.](vocasync-[a-z0-9_-]+)/g)) {
+      referenced.add(m[1]);
+    }
   }
 
-  test("the stylesheet styles classes at all", () => {
-    expect(styled.size).toBeGreaterThan(0);
+  test("the stylesheets style classes at all", () => {
+    expect(styled.size).toBeGreaterThan(10);
   });
 
-  test("every class the stylesheet styles is emitted by some code path", () => {
+  test("every class the stylesheets style is emitted by some code path", () => {
+    // `.vocasync-math-speech` styled a class nothing emitted for months.
     const orphaned = [...styled].filter((c) => !referenced.has(c)).sort();
     expect(orphaned).toEqual([]);
   });

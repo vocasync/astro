@@ -1,0 +1,31 @@
+/**
+ * Adopt a shadcn/ui + Tailwind host palette.
+ *
+ *   @import "@vocasync/astro/styles/preset-shadcn.css";
+ *
+ * Import it after the player styles and the player takes your colours -- and your
+ * dark mode with them, with no configuration, because these tokens already flip
+ * under your `.dark` class. Nothing here hardcodes a colour; each token simply points
+ * at yours, with the player's own default as the fallback if you have not defined it.
+ *
+ * This is just the indirection pattern written down. Any design system works the same
+ * way: point the four seeds at whatever your tokens are called.
+ */
+@layer vocasync.tokens, vocasync.base, vocasync.variants;
+
+@layer vocasync.tokens {
+  :root {
+    --vocasync-accent: var(--primary, #3b82f6);
+    --vocasync-accent-content: var(--primary-foreground, #ffffff);
+    --vocasync-surface: var(--card, #f8fafc);
+    --vocasync-surface-raised: var(--popover, #ffffff);
+    --vocasync-text: var(--card-foreground, #1e293b);
+    --vocasync-text-muted: var(--muted-foreground, #64748b);
+    --vocasync-border: var(--border, #e2e8f0);
+    --vocasync-track: var(--muted, #e2e8f0);
+    --vocasync-focus-color: var(--ring, var(--vocasync-accent));
+
+    /* shadcn has no "currently speaking" colour, so the highlight keeps its own
+     * default. Override it to something from your palette if the green clashes. */
+  }
+}

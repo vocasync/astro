@@ -1,0 +1,248 @@
+/**
+ * The VocaSync theming surface.
+ *
+ * Four seeds carry a whole theme:
+ *
+ *   :root {
+ *     --vocasync-accent:  #8b5cf6;
+ *     --vocasync-surface: #faf7ff;
+ *     --vocasync-text:    #1e1b2e;
+ *     --vocasync-highlight: #f59e0b;
+ *   }
+ *
+ * Everything else derives from them, and every derived token can still be overridden
+ * on its own. Point a seed at a token you already have and the player adopts your
+ * palette -- and your dark mode with it, because your token already flips:
+ *
+ *   :root { --vocasync-accent: var(--primary); }
+ *
+ * See preset-shadcn.css for that wired up.
+ */
+
+/* Must precede @property: only @charset, @import and @layer may come first. */
+@layer vocasync.tokens, vocasync.base, vocasync.variants;
+
+/*
+ * Registering the seeds means a value that is not a colour -- a gradient, a typo,
+ * `currentColor` -- falls back to the default instead of resolving to `unset` and
+ * rendering the component invisible. Only the seeds are registered: constraining the
+ * derived tokens would stop consumers assigning whatever they like to them.
+ */
+@property --vocasync-accent {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #3b82f6;
+}
+@property --vocasync-surface {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #f8fafc;
+}
+@property --vocasync-text {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #1e293b;
+}
+@property --vocasync-highlight {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #10b981;
+}
+
+@layer vocasync.tokens {
+  :root {
+    /* ---------------------------------------------------------------- seeds */
+    --vocasync-accent: #3b82f6;
+    --vocasync-surface: #f8fafc;
+    --vocasync-text: #1e293b;
+    --vocasync-highlight: #10b981;
+
+    /* ------------------------------------------------ derived: static values
+     * Overridden below by the @supports blocks wherever the browser can compute
+     * them from the seeds. These literals are what a browser without relative
+     * colour syntax falls back to, so they match the default seeds rather than
+     * tracking a custom one.
+     */
+    --vocasync-accent-hover: #2563eb;
+    --vocasync-accent-content: #ffffff;
+    --vocasync-surface-raised: #ffffff;
+    --vocasync-text-muted: #64748b;
+    --vocasync-text-faint: #94a3b8;
+    --vocasync-border: #e2e8f0;
+    --vocasync-track: #e2e8f0;
+    --vocasync-highlight-active-bg: rgb(16 185 129 / 0.25);
+    --vocasync-highlight-trail-bg: rgb(16 185 129 / 0.12);
+    /* Left unset so the active word keeps the prose colour. Set it to force one. */
+    --vocasync-highlight-active-text: ;
+
+    /* ------------------------------------------------------------ typography
+     * The family inherits by default: the player should read as part of the page
+     * it sits in, not announce itself.
+     */
+    --vocasync-font-family: inherit;
+    --vocasync-font-size: 0.875rem;
+    --vocasync-font-size-sm: 0.75rem;
+    --vocasync-font-weight: 400;
+    --vocasync-font-weight-medium: 500;
+    --vocasync-line-height: 1.4;
+    --vocasync-numeric: tabular-nums;
+
+    /* ---------------------------------------------------------------- density
+     * One multiplier scales padding, gaps and control sizes together, so a player
+     * can be made compact without restating a dozen lengths.
+     */
+    --vocasync-density: 1;
+    --vocasync-unit: 0.25rem;
+    --vocasync-gap: calc(var(--vocasync-unit) * 3 * var(--vocasync-density));
+    --vocasync-gap-sm: calc(var(--vocasync-unit) * 1 * var(--vocasync-density));
+    --vocasync-padding: calc(var(--vocasync-unit) * 4 * var(--vocasync-density));
+    --vocasync-control-size: calc(2.5rem * var(--vocasync-density));
+    --vocasync-control-size-sm: calc(2rem * var(--vocasync-density));
+    --vocasync-icon-size: calc(1.25rem * var(--vocasync-density));
+
+    /* ------------------------------------------------------------------ shape */
+    --vocasync-radius: 0.75rem;
+    --vocasync-radius-control: 0.375rem;
+    --vocasync-radius-menu: 0.5rem;
+    --vocasync-radius-pill: 9999px;
+    --vocasync-word-radius: 0.125rem;
+    --vocasync-border-width: 1px;
+
+    /* ---------------------------------------------------------------- sliders */
+    --vocasync-slider-height: 0.375rem;
+    --vocasync-slider-thumb-size: 1rem;
+    --vocasync-volume-width: 4rem;
+
+    /* ------------------------------------------------------------------- dock */
+    --vocasync-dock-height: 3.5rem;
+    --vocasync-dock-offset: 1rem;
+    --vocasync-dock-width: 20rem;
+
+    /* ------------------------------------------------------------------ focus */
+    --vocasync-focus-width: 2px;
+    --vocasync-focus-offset: 2px;
+    --vocasync-focus-color: var(--vocasync-accent);
+
+    /* -------------------------------------------------------------- elevation */
+    --vocasync-shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --vocasync-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+    --vocasync-shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+
+    /* ----------------------------------------------------------------- motion */
+    --vocasync-transition-fast: 150ms ease;
+    --vocasync-transition: 200ms ease;
+
+    /* ------------------------------------------------------------------ layer */
+    --vocasync-menu-z: 10;
+    --vocasync-dock-z: 1000;
+
+    /* Lightness above which accent-content flips to black. Perceptual, not a WCAG
+     * measurement -- raise it if your accent needs dark text sooner. */
+    --vocasync-l-threshold: 0.623;
+  }
+
+  /* ------------------------------------------------------------------- dark
+   * Three ways in, because sites disagree on how they signal dark mode:
+   *   - the OS preference, unless the page has explicitly opted into light
+   *   - our own attribute, for explicit control
+   *   - the conventions Tailwind, next-themes, daisyUI and Starlight already use,
+   *     so most sites need no configuration at all
+   *
+   * These selectors are deliberately NOT wrapped in :where(). Zero specificity would
+   * lose to the `:root` block above, and the class-based switch -- the whole reason
+   * this exists -- would silently never apply.
+   */
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-vocasync-scheme="light"]):not(.light):not([data-theme="light"]):not(
+        [data-mode="light"]
+      ) {
+      --vocasync-accent: #60a5fa;
+      --vocasync-surface: #1e293b;
+      --vocasync-text: #f1f5f9;
+      --vocasync-highlight: #34d399;
+
+      /* Static fallbacks for browsers without color-mix(); the @supports block below
+     * recomputes these from whichever seeds are in play. */
+      --vocasync-accent-hover: #3b82f6;
+      --vocasync-accent-content: #1e293b;
+      --vocasync-surface-raised: #334155;
+      --vocasync-text-muted: #94a3b8;
+      --vocasync-text-faint: #64748b;
+      --vocasync-border: #475569;
+      --vocasync-track: #475569;
+      --vocasync-highlight-active-bg: rgb(52 211 153 / 0.25);
+      --vocasync-highlight-trail-bg: rgb(52 211 153 / 0.12);
+
+      --vocasync-shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.2);
+      --vocasync-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.3), 0 1px 2px -1px rgb(0 0 0 / 0.3);
+      --vocasync-shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.3), 0 4px 6px -4px rgb(0 0 0 / 0.3);
+    }
+  }
+
+  [data-vocasync-scheme="dark"],
+  .dark,
+  [data-theme="dark"],
+  [data-mode="dark"] {
+    --vocasync-accent: #60a5fa;
+    --vocasync-surface: #1e293b;
+    --vocasync-text: #f1f5f9;
+    --vocasync-highlight: #34d399;
+
+    /* Static fallbacks for browsers without color-mix(); the @supports block below
+     * recomputes these from whichever seeds are in play. */
+    --vocasync-accent-hover: #3b82f6;
+    --vocasync-accent-content: #1e293b;
+    --vocasync-surface-raised: #334155;
+    --vocasync-text-muted: #94a3b8;
+    --vocasync-text-faint: #64748b;
+    --vocasync-border: #475569;
+    --vocasync-track: #475569;
+    --vocasync-highlight-active-bg: rgb(52 211 153 / 0.25);
+    --vocasync-highlight-trail-bg: rgb(52 211 153 / 0.12);
+
+    --vocasync-shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.2);
+    --vocasync-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.3), 0 1px 2px -1px rgb(0 0 0 / 0.3);
+    --vocasync-shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.3), 0 4px 6px -4px rgb(0 0 0 / 0.3);
+  }
+
+  /* --------------------------------------------------- derived: computed, last
+   * These come after the scheme blocks on purpose. Each derives from whichever
+   * seeds ended up winning, so overriding one seed re-colours the whole player in
+   * light AND dark. Putting them earlier -- as the first draft did -- let the dark
+   * block's static literals win, and a custom seed only half-applied.
+   */
+  @supports (color: color-mix(in oklab, red, blue)) {
+    :root {
+      --vocasync-accent-hover: color-mix(in oklab, var(--vocasync-accent), black 12%);
+      --vocasync-surface-raised: color-mix(in oklab, var(--vocasync-surface), white 60%);
+      --vocasync-text-muted: color-mix(in oklab, var(--vocasync-text), var(--vocasync-surface) 40%);
+      --vocasync-text-faint: color-mix(in oklab, var(--vocasync-text), var(--vocasync-surface) 60%);
+      --vocasync-border: color-mix(in oklab, var(--vocasync-text), var(--vocasync-surface) 85%);
+      --vocasync-track: color-mix(in oklab, var(--vocasync-text), var(--vocasync-surface) 85%);
+      --vocasync-highlight-active-bg: color-mix(
+        in oklab,
+        var(--vocasync-highlight) 25%,
+        transparent
+      );
+      --vocasync-highlight-trail-bg: color-mix(
+        in oklab,
+        var(--vocasync-highlight) 12%,
+        transparent
+      );
+    }
+  }
+
+  /*
+   * Black or white against the accent, whichever reads. Relative colour syntax
+   * cannot lift `l` out into a custom property, so the decision is made inline:
+   * below the threshold the clamp resolves to 1 (white), above it to 0 (black).
+   */
+  @supports (color: oklch(from red l c h)) {
+    :root {
+      --vocasync-accent-content: oklch(
+        from var(--vocasync-accent) clamp(0, (l / var(--vocasync-l-threshold) - 1) * -infinity, 1) 0
+          h
+      );
+    }
+  }
+}

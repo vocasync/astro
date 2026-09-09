@@ -6,13 +6,56 @@ import type { AudioMap } from "./types/index.js";
 // Cache for the loaded audio map
 let audioMapCache: AudioMap | null = null;
 
+export interface VocaSyncThemeOptions {
+  /**
+   * A selector your site already uses to signal dark mode, e.g. `".dark"` or
+   * `'[data-theme="night"]'`. The player's dark tokens are emitted under it as well.
+   *
+   * Usually unnecessary: `.dark`, `[data-theme="dark"]` and `[data-mode="dark"]` are
+   * recognised out of the box, which covers Tailwind, next-themes, daisyUI and
+   * Starlight. Reach for this only when your site signals dark mode some other way.
+   */
+  darkSelector?: string;
+}
+
+export interface VocaSyncOptions {
+  /**
+   * Inject the player stylesheet on every page. Set false to import the parts
+   * yourself -- `@vocasync/astro/styles/vocasync.css`, or just `content.css` when you
+   * drive the engine headlessly and ship your own chrome.
+   *
+   * @default true
+   */
+  styles?: boolean;
+  theme?: VocaSyncThemeOptions;
+}
+
+/** Dark-mode tokens, emitted again under a host's own dark selector. */
+const DARK_TOKENS = `
+  --vocasync-accent: #60a5fa;
+  --vocasync-surface: #1e293b;
+  --vocasync-text: #f1f5f9;
+  --vocasync-highlight: #34d399;
+  --vocasync-accent-hover: #3b82f6;
+  --vocasync-accent-content: #1e293b;
+  --vocasync-surface-raised: #334155;
+  --vocasync-text-muted: #94a3b8;
+  --vocasync-text-faint: #64748b;
+  --vocasync-border: #475569;
+  --vocasync-track: #475569;
+`;
+
 /**
  * VocaSync Astro Integration.
  *
  * Provides:
  * - Virtual module `virtual:vocasync/audio-map` for accessing audio data
- * - Automatic rehype plugin for word-level highlighting
+ * - The player stylesheet, injected on every page unless `styles: false`
  * - Optional build-time sync command
+ *
+ * It does NOT register the rehype plugins. Add `rehypeMathSpeech` and
+ * `rehypeAudioWords` to `markdown.rehypePlugins` yourself; their order relative to
+ * your maths renderer matters, so it is left explicit.
  *
  * @example
  * ```typescript
@@ -29,11 +72,12 @@ let audioMapCache: AudioMap | null = null;
  * };
  * ```
  */
-export default function vocasyncIntegration(): AstroIntegration {
+export default function vocasyncIntegration(options: VocaSyncOptions = {}): AstroIntegration {
+  const { styles = true, theme = {} } = options;
   return {
     name: "@vocasync/astro",
     hooks: {
-      "astro:config:setup": async ({ updateConfig, logger }) => {
+      "astro:config:setup": async ({ updateConfig, injectScript, logger }) => {
         // Load config from vocasync.config.mjs
         let config: VocaSyncConfig;
         try {
@@ -45,6 +89,15 @@ export default function vocasyncIntegration(): AstroIntegration {
         }
 
         logger.info("VocaSync integration loaded");
+
+        // Injected rather than left to the consumer: forgetting the import used to
+        // yield an unstyled player AND invisible word highlighting, with no error.
+        if (styles) {
+          injectScript("page-ssr", 'import "@vocasync/astro/styles/vocasync.css";');
+          if (theme.darkSelector) {
+            injectScript("page-ssr", 'import "virtual:vocasync/theme.css";');
+          }
+        }
 
         // Pre-load audio map for rehype plugin
         try {
@@ -70,6 +123,11 @@ export default function vocasyncIntegration(): AstroIntegration {
                   if (id === "virtual:vocasync/config") {
                     return "\0virtual:vocasync/config";
                   }
+                  // Keep the .css suffix: Vite decides how to handle a module by its
+                  // extension, and without it this would be treated as JavaScript.
+                  if (id === "virtual:vocasync/theme.css") {
+                    return "\0virtual:vocasync/theme.css";
+                  }
                   return null;
                 },
                 async load(id: string) {
@@ -80,6 +138,10 @@ export default function vocasyncIntegration(): AstroIntegration {
                   if (id === "\0virtual:vocasync/config") {
                     // Export the validated config
                     return `export default ${JSON.stringify(config)};`;
+                  }
+                  if (id === "\0virtual:vocasync/theme.css") {
+                    if (!theme.darkSelector) return "";
+                    return `@layer vocasync.tokens {\n  ${theme.darkSelector} {${DARK_TOKENS}  }\n}\n`;
                   }
                   return null;
                 },

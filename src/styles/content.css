@@ -1,0 +1,41 @@
+/**
+ * Styles for the article body, not the player chrome.
+ *
+ * The word spans are emitted at build time by the rehype plugin, so these rules are
+ * required whenever highlighting is used -- including by a consumer who drives the
+ * engine headlessly and ships no player chrome at all. That is why they are a
+ * separate file from player.css rather than part of it.
+ */
+@layer vocasync.tokens, vocasync.base, vocasync.variants;
+
+@layer vocasync.base {
+  :where(.vocasync-word) {
+    border-radius: var(--vocasync-word-radius);
+    padding: 0 0.0625rem;
+    margin: 0 -0.0625rem;
+    transition:
+      background-color var(--vocasync-transition-fast),
+      color var(--vocasync-transition-fast);
+  }
+
+  :where(.vocasync-word).is-active {
+    background-color: var(--vocasync-highlight-active-bg);
+    color: var(--vocasync-highlight-active-text, inherit);
+  }
+
+  /* The words already spoken, fading out behind the active one. */
+  :where(.vocasync-word).is-trail {
+    background-color: var(--vocasync-highlight-trail-bg);
+  }
+
+  /* Click-to-seek is opt-in, so the affordance only appears when it is wired up. */
+  :where(.vocasync-click-seek) :where(.vocasync-word) {
+    cursor: pointer;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    :where(.vocasync-word) {
+      transition: none;
+    }
+  }
+}

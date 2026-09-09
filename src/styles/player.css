@@ -1,0 +1,438 @@
+/**
+ * The player chrome.
+ *
+ * Every selector sits in a cascade layer AND is wrapped in :where(), so it has zero
+ * specificity and loses to any rule you write -- layered or not, however you order
+ * your imports. Overriding a VocaSync style never requires !important.
+ *
+ * Optional: a consumer driving the engine headlessly with their own markup needs
+ * content.css but not this file.
+ */
+@layer vocasync.tokens, vocasync.base, vocasync.variants;
+
+@layer vocasync.base {
+  /* ------------------------------------------------------------------- shell */
+
+  :where(.vocasync-player) {
+    display: flex;
+    flex-direction: column;
+    gap: var(--vocasync-gap);
+    padding: var(--vocasync-padding);
+    background: var(--vocasync-surface);
+    border: var(--vocasync-border-width) solid var(--vocasync-border);
+    border-radius: var(--vocasync-radius);
+    box-shadow: var(--vocasync-shadow-sm);
+    color: var(--vocasync-text);
+    font-family: var(--vocasync-font-family);
+    font-size: var(--vocasync-font-size);
+    font-weight: var(--vocasync-font-weight);
+    line-height: var(--vocasync-line-height);
+  }
+
+  :where(.vocasync-player):focus-visible,
+  :where(.vocasync-player__play-btn):focus-visible,
+  :where(.vocasync-player__icon-btn):focus-visible,
+  :where(.vocasync-player__speed-btn):focus-visible {
+    outline: var(--vocasync-focus-width) solid var(--vocasync-focus-color);
+    outline-offset: var(--vocasync-focus-offset);
+  }
+
+  /* Panels are mutually exclusive; `hidden` is the switch. Wrapping the base rules
+   * in :where() means the attribute selector wins on its own, so none of this needs
+   * !important the way the previous stylesheet did. */
+  :where(.vocasync-player__loading),
+  :where(.vocasync-player__placeholder) {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: calc(var(--vocasync-unit) * 2);
+    padding: calc(var(--vocasync-unit) * 3);
+    color: var(--vocasync-text-muted);
+    font-size: var(--vocasync-font-size);
+  }
+
+  :where(.vocasync-player__controls) {
+    display: flex;
+    align-items: center;
+    gap: var(--vocasync-gap);
+    flex-wrap: wrap;
+  }
+
+  :where(.vocasync-player__loading)[hidden],
+  :where(.vocasync-player__placeholder)[hidden],
+  :where(.vocasync-player__controls)[hidden] {
+    display: none;
+  }
+
+  :where(.vocasync-player__spinner) {
+    width: 1.25rem;
+    height: 1.25rem;
+    border: 2px solid var(--vocasync-border);
+    border-top-color: var(--vocasync-accent);
+    border-radius: 50%;
+    animation: vocasync-spin 0.75s linear infinite;
+  }
+
+  @keyframes vocasync-spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  /* ------------------------------------------------------------------ buttons */
+
+  :where(.vocasync-player__play-btn) {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: var(--vocasync-control-size);
+    height: var(--vocasync-control-size);
+    background: var(--vocasync-accent);
+    color: var(--vocasync-accent-content);
+    border: none;
+    border-radius: var(--vocasync-radius-pill);
+    cursor: pointer;
+    transition: background-color var(--vocasync-transition-fast);
+  }
+
+  :where(.vocasync-player__play-btn):hover {
+    background: var(--vocasync-accent-hover);
+  }
+
+  :where(.vocasync-icon) {
+    width: var(--vocasync-icon-size);
+    height: var(--vocasync-icon-size);
+  }
+
+  :where(.vocasync-hidden) {
+    display: none;
+  }
+
+  :where(.vocasync-player__icon-btn) {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--vocasync-control-size-sm);
+    height: var(--vocasync-control-size-sm);
+    color: var(--vocasync-text-muted);
+    background: transparent;
+    border: none;
+    border-radius: var(--vocasync-radius-control);
+    cursor: pointer;
+    transition:
+      color var(--vocasync-transition-fast),
+      background-color var(--vocasync-transition-fast);
+  }
+
+  :where(.vocasync-player__icon-btn):hover {
+    color: var(--vocasync-text);
+    background: var(--vocasync-border);
+  }
+
+  :where(.vocasync-player__icon-btn)[data-highlighting="off"] {
+    color: var(--vocasync-text-faint);
+  }
+
+  /* ----------------------------------------------------------------- progress */
+
+  :where(.vocasync-player__progress-section) {
+    display: flex;
+    flex-direction: column;
+    gap: var(--vocasync-gap-sm);
+    flex: 1;
+    min-width: 0;
+  }
+
+  :where(.vocasync-player__time) {
+    display: flex;
+    gap: var(--vocasync-gap-sm);
+    font-size: var(--vocasync-font-size-sm);
+    font-variant-numeric: var(--vocasync-numeric);
+    color: var(--vocasync-text-muted);
+  }
+
+  :where(.vocasync-player__time-sep) {
+    color: var(--vocasync-text-faint);
+  }
+
+  :where(.vocasync-player__progress),
+  :where(.vocasync-player__volume-slider) {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: var(--vocasync-slider-height);
+    background: var(--vocasync-track);
+    border-radius: var(--vocasync-radius-pill);
+    cursor: pointer;
+  }
+
+  :where(.vocasync-player__progress)::-webkit-slider-thumb,
+  :where(.vocasync-player__volume-slider)::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: var(--vocasync-slider-thumb-size);
+    height: var(--vocasync-slider-thumb-size);
+    background: var(--vocasync-accent);
+    border: none;
+    border-radius: 50%;
+    box-shadow: var(--vocasync-shadow);
+    transition: transform var(--vocasync-transition-fast);
+  }
+
+  :where(.vocasync-player__progress)::-webkit-slider-thumb:hover,
+  :where(.vocasync-player__volume-slider)::-webkit-slider-thumb:hover {
+    transform: scale(1.1);
+  }
+
+  :where(.vocasync-player__progress)::-moz-range-thumb,
+  :where(.vocasync-player__volume-slider)::-moz-range-thumb {
+    width: var(--vocasync-slider-thumb-size);
+    height: var(--vocasync-slider-thumb-size);
+    background: var(--vocasync-accent);
+    border: none;
+    border-radius: 50%;
+    box-shadow: var(--vocasync-shadow);
+  }
+
+  /* ------------------------------------------------------------------ grouped */
+
+  :where(.vocasync-player__button-group) {
+    display: flex;
+    align-items: center;
+    gap: var(--vocasync-gap-sm);
+  }
+
+  :where(.vocasync-player__speed) {
+    position: relative;
+  }
+
+  :where(.vocasync-player__speed-btn) {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 2.5rem;
+    height: 1.75rem;
+    padding: 0 calc(var(--vocasync-unit) * 2);
+    font-family: inherit;
+    font-size: var(--vocasync-font-size-sm);
+    font-weight: var(--vocasync-font-weight-medium);
+    color: var(--vocasync-text-muted);
+    background: var(--vocasync-surface-raised);
+    border: var(--vocasync-border-width) solid var(--vocasync-border);
+    border-radius: var(--vocasync-radius-control);
+    cursor: pointer;
+    transition:
+      color var(--vocasync-transition-fast),
+      border-color var(--vocasync-transition-fast);
+  }
+
+  :where(.vocasync-player__speed-btn):hover {
+    color: var(--vocasync-text);
+    border-color: var(--vocasync-accent);
+  }
+
+  :where(.vocasync-player__speed-menu) {
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+    padding: var(--vocasync-gap-sm);
+    margin-bottom: calc(var(--vocasync-unit) * 2);
+    background: var(--vocasync-surface-raised);
+    border: var(--vocasync-border-width) solid var(--vocasync-border);
+    border-radius: var(--vocasync-radius-menu);
+    box-shadow: var(--vocasync-shadow-lg);
+    z-index: var(--vocasync-menu-z);
+  }
+
+  :where(.vocasync-player__speed-menu)[hidden] {
+    display: none;
+  }
+
+  :where(.vocasync-player__speed-menu) button {
+    padding: 0.375rem calc(var(--vocasync-unit) * 3);
+    font-family: inherit;
+    font-size: var(--vocasync-font-size-sm);
+    color: var(--vocasync-text-muted);
+    background: transparent;
+    border: none;
+    border-radius: var(--vocasync-radius-control);
+    cursor: pointer;
+    white-space: nowrap;
+    transition:
+      color var(--vocasync-transition-fast),
+      background-color var(--vocasync-transition-fast);
+  }
+
+  :where(.vocasync-player__speed-menu) button:hover {
+    background: var(--vocasync-border);
+    color: var(--vocasync-text);
+  }
+
+  :where(.vocasync-player__speed-menu) button[data-active] {
+    background: var(--vocasync-accent);
+    color: var(--vocasync-accent-content);
+  }
+
+  :where(.vocasync-player__volume) {
+    display: flex;
+    align-items: center;
+    gap: var(--vocasync-gap-sm);
+  }
+
+  :where(.vocasync-player__volume-slider) {
+    width: var(--vocasync-volume-width);
+  }
+
+  @media (max-width: 40em) {
+    :where(.vocasync-player__volume-slider) {
+      display: none;
+    }
+  }
+
+  /* --------------------------------------------------------------------- dock */
+
+  :where(.vocasync-mini-player) {
+    position: fixed;
+    inset-block-end: var(--vocasync-dock-offset);
+    inset-inline: var(--vocasync-dock-offset);
+    display: flex;
+    align-items: center;
+    gap: var(--vocasync-gap);
+    height: var(--vocasync-dock-height);
+    padding: 0 var(--vocasync-padding);
+    background: var(--vocasync-surface-raised);
+    color: var(--vocasync-text);
+    border: var(--vocasync-border-width) solid var(--vocasync-border);
+    border-radius: var(--vocasync-radius-pill);
+    box-shadow: var(--vocasync-shadow-lg);
+    z-index: var(--vocasync-dock-z);
+    opacity: 1;
+    translate: 0 0;
+    transition:
+      opacity var(--vocasync-transition),
+      translate var(--vocasync-transition),
+      display var(--vocasync-transition) allow-discrete;
+  }
+
+  /*
+   * The previous stylesheet forced `display: flex` on the hidden dock so it could
+   * animate, which defeats the `hidden` attribute: its buttons stayed focusable and
+   * present in the accessibility tree while invisible. Discrete transitions let it
+   * animate *and* actually be hidden.
+   */
+  :where(.vocasync-mini-player)[hidden] {
+    display: none;
+    opacity: 0;
+    translate: 0 100%;
+  }
+
+  @starting-style {
+    :where(.vocasync-mini-player) {
+      opacity: 0;
+      translate: 0 100%;
+    }
+  }
+
+  :where(.vocasync-mini-player__play-btn) {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: var(--vocasync-control-size-sm);
+    height: var(--vocasync-control-size-sm);
+    background: var(--vocasync-accent);
+    color: var(--vocasync-accent-content);
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+  }
+
+  :where(.vocasync-mini-player__play-btn) :where(.vocasync-icon) {
+    width: 1rem;
+    height: 1rem;
+  }
+
+  :where(.vocasync-mini-player__progress) {
+    flex: 1;
+    height: var(--vocasync-unit);
+    background: var(--vocasync-track);
+    border-radius: var(--vocasync-radius-pill);
+    overflow: hidden;
+  }
+
+  :where(.vocasync-mini-player__progress-bar) {
+    height: 100%;
+    background: var(--vocasync-accent);
+    border-radius: var(--vocasync-radius-pill);
+    transition: width 100ms linear;
+  }
+
+  :where(.vocasync-mini-player__time) {
+    font-size: var(--vocasync-font-size-sm);
+    font-variant-numeric: var(--vocasync-numeric);
+    color: var(--vocasync-text-muted);
+    min-width: 2.5rem;
+  }
+
+  :where(.vocasync-mini-player__close-btn) {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.5rem;
+    height: 1.5rem;
+    color: var(--vocasync-text-faint);
+    background: transparent;
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: color var(--vocasync-transition-fast);
+  }
+
+  :where(.vocasync-mini-player__close-btn):hover {
+    color: var(--vocasync-text);
+  }
+
+  :where(.vocasync-mini-player__close-btn) svg {
+    width: 1rem;
+    height: 1rem;
+  }
+
+  @media (min-width: 40em) {
+    :where(.vocasync-mini-player) {
+      inset-inline-start: auto;
+      max-width: var(--vocasync-dock-width);
+    }
+  }
+
+  /* ------------------------------------------------------------ accessibility */
+
+  /* The previous stylesheet honoured this only for autoscroll, in JavaScript. */
+  @media (prefers-reduced-motion: reduce) {
+    :where(.vocasync-player) *,
+    :where(.vocasync-mini-player),
+    :where(.vocasync-mini-player) * {
+      transition-duration: 1ms;
+      animation-duration: 1ms;
+      animation-iteration-count: 1;
+    }
+  }
+
+  /* In forced-colors mode the system palette wins; make sure shapes survive it. */
+  @media (forced-colors: active) {
+    :where(.vocasync-player),
+    :where(.vocasync-mini-player),
+    :where(.vocasync-player__speed-menu) {
+      border: 1px solid CanvasText;
+    }
+
+    :where(.vocasync-player__play-btn),
+    :where(.vocasync-mini-player__play-btn) {
+      border: 1px solid ButtonText;
+    }
+  }
+}

@@ -1,0 +1,10 @@
+/**
+ * Everything, in the right order. This is what the integration injects.
+ *
+ * Import the parts directly instead if you want less: content.css alone is enough
+ * for a headless player that ships its own chrome.
+ */
+@import "./layers.css";
+@import "./tokens.css";
+@import "./content.css";
+@import "./player.css";

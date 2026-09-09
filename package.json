@@ -18,8 +18,17 @@
       "types": "./dist/rehype/index.d.ts",
       "import": "./dist/rehype/index.js"
     },
-    "./styles": "./dist/styles/variables.css",
-    "./styles/variables.css": "./dist/styles/variables.css"
+    "./player-core": {
+      "types": "./dist/player-core/index.d.ts",
+      "import": "./dist/player-core/index.js"
+    },
+    "./styles": "./dist/styles/vocasync.css",
+    "./styles/vocasync.css": "./dist/styles/vocasync.css",
+    "./styles/layers.css": "./dist/styles/layers.css",
+    "./styles/tokens.css": "./dist/styles/tokens.css",
+    "./styles/content.css": "./dist/styles/content.css",
+    "./styles/player.css": "./dist/styles/player.css",
+    "./styles/preset-shadcn.css": "./dist/styles/preset-shadcn.css"
   },
   "bin": {
     "vocasync": "./dist/cli.js"
@@ -29,7 +38,7 @@
     "src"
   ],
   "scripts": {
-    "build": "tsc && cp -r src/components/*.astro dist/components/ && cp -r src/styles dist/",
+    "build": "rm -rf dist && tsc && cp -r src/components/*.astro dist/components/ && cp -r src/styles dist/",
     "dev": "tsc --watch",
     "test": "bun test",
     "check": "biome check .",
