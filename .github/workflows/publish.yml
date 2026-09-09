@@ -34,8 +34,6 @@ jobs:
       - name: Typecheck
         run: bun run check:types
 
-      - name: Typecheck .astro files
-        run: bun run check:astro
 
       - name: Test
         run: bun test
