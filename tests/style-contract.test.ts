@@ -91,6 +91,32 @@ describe("token contract", () => {
   });
 });
 
+describe("documentation contract", () => {
+  const readme = readFileSync(join(ROOT, "README.md"), "utf8");
+  const documented = new Set([...readme.matchAll(/`(--vocasync-[a-z0-9-]+)`/g)].map((m) => m[1]));
+  const declared = new Set<string>();
+  for (const m of stripComments(allCss).matchAll(/^\s*(--vocasync-[a-z0-9-]+)\s*:/gm)) {
+    declared.add(m[1]);
+  }
+
+  test("every token the player ships is documented in the README", () => {
+    // The previous README documented 10 of 30 tokens, and one of the values it gave
+    // did not match what shipped. An undocumented token is one nobody can use.
+    const undocumented = [...declared].filter((t) => !documented.has(t)).sort();
+    expect(undocumented).toEqual([]);
+  });
+
+  test("the migration table covers every renamed or removed v1 token", () => {
+    // Tokens named in the README that no longer exist must be accounted for there,
+    // or a reader following an old blog post gets no explanation.
+    const v1Only = [...documented].filter((t) => !declared.has(t));
+    const migration = readme.slice(readme.indexOf("## Migrating from v1"));
+    const unexplained = v1Only.filter((t) => !migration.includes(t)).sort();
+    expect(unexplained).toEqual([]);
+    expect(v1Only.length).toBeGreaterThan(10);
+  });
+});
+
 describe("cascade contract", () => {
   test("no rule uses !important", () => {
     for (const [file, css] of cssByFile) {

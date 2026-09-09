@@ -7,9 +7,12 @@ Turn your Astro blog posts into narrated audio with word-level synchronization.
 - 🎙️ **Text-to-Speech Synthesis** - Generate natural-sounding audio narration for your content
 - 🎯 **Word-Level Alignment** - Precise timestamps for every word, powered by forced alignment
 - ✨ **Live Word Highlighting** - Karaoke-style highlighting that follows along with playback
-- 🎛️ **Built-in Audio Player** - Accessible player with keyboard shortcuts and mini-player mode
+- 🎛️ **Built-in Audio Player** - Keyboard shortcuts, a floating dock, and controls you can reorder or replace
 - 🌍 **14 Languages** - Global reach with support for 14 languages
-- 🎨 **Fully Themeable** - CSS variables for seamless integration with any design
+- 🎨 **Themeable down to the pixel** - Four seeds carry a whole theme; every rule loses to yours, so no `!important`
+- 🌗 **Dark mode that follows yours** - The OS preference plus `.dark`, `[data-theme]` and `[data-mode]`, with no configuration
+- 🈯 **Translatable** - Every visible string and accessible label is overridable
+- 🧩 **Headless option** - Import the engine and bring your own markup
 
 ## Demo
 
@@ -25,11 +28,13 @@ Turn your Astro blog posts into narrated audio with word-level synchronization.
 - [Configuration](#configuration)
 - [CLI Commands](#cli-commands)
 - [Components](#components)
+- [Headless usage](#headless-usage)
 - [Supported Languages](#supported-languages)
 - [Math Support](#math-support)
 - [Deployment](#deployment)
 - [Important: Audio Map](#important-audio-map)
-- [Customizing Styles](#customizing-styles)
+- [Theming](#theming)
+- [Migrating from v1](#migrating-from-v1)
 
 ## Installation
 
@@ -40,6 +45,18 @@ bun add @vocasync/astro
 # or
 pnpm add @vocasync/astro
 ```
+
+### Astro 7
+
+Astro 7 no longer installs `@astrojs/markdown-remark` by default, and the rehype
+plugins that produce word highlighting cannot run without it:
+
+```bash
+bun add @astrojs/markdown-remark
+```
+
+Astro 4, 5 and 6 need nothing extra. The plugin is tested against all four on every
+change.
 
 ## Quick Start
 
@@ -229,7 +246,7 @@ Invalid values are skipped with a warning. Changing any of these re-syncs the po
 [rehypeAudioWords, {
   collectionName: "blog",                  // Content collection name
   audioMapPath: "src/data/audio-map.json", // Path to audio map
-  classPrefix: "vocasync",                 // CSS class prefix (default: "vocasync")
+  extraWordClass: "prose-word",             // optional extra class on each word span
 }]
 ```
 
@@ -274,74 +291,192 @@ npx vocasync help
 
 ### AudioPlayer
 
-The main audio player component with word highlighting support.
-
 ```astro
 ---
 import AudioPlayer from "@vocasync/astro/components/AudioPlayer.astro";
+import audioMap from "../data/audio-map.json";
 ---
 
-<AudioPlayer
-  slug={post.slug}
-  label="Listen to this post"
-  articleSelector="[data-article-body]"
-  enableHighlighting={true}
-  enableClickToSeek={true}
-  enableMiniPlayer={true}
-  trailLength={4}
-/>
+<AudioPlayer slug={slug} audioEntry={audioMap.entries[slug]} />
+
+<div data-article-body>
+  <Content />
+</div>
 ```
+
+The player renders markup only. Playback, highlighting and the view-transition
+lifecycle live in a module script that is bundled once per page, no matter how many
+players are on it.
 
 #### Props
 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
-| `slug` | `string` | required | Post slug to lookup audio |
-| `audioEntry` | `object` | `undefined` | Audio entry from audio-map.json (`audioUrl`, `synthesisPublishableKey`, `words`, `duration`) |
-| `label` | `string` | `"Listen to this article"` | Accessible label |
-| `showPlaceholder` | `boolean` | `true` | Show message when no audio |
-| `class` | `string` | `""` | Additional CSS classes |
-| `articleSelector` | `string` | `"[data-article-body]"` | Selector for word highlighting container |
-| `enableMiniPlayer` | `boolean` | `true` | Show floating mini player on scroll |
-| `enableHighlighting` | `boolean` | `true` | Enable word highlighting |
-| `enableClickToSeek` | `boolean` | `true` | Enable click on words to seek audio |
-| `trailLength` | `number` | `4` | Number of trailing highlighted words |
+| `slug` | `string` | required | Post slug, used to look up audio |
+| `audioEntry` | `AudioEntry` | — | Entry from `audio-map.json` |
+| `variant` | `"bar" \| "minimal" \| "card"` | `"bar"` | Shape of the player |
+| `size` | `"sm" \| "md" \| "lg"` | `"md"` | Scales the whole player |
+| `controls` | `ControlName[]` | see below | Which controls render, and in what order |
+| `speeds` | `number[]` | `[0.5, 0.75, 1, 1.25, 1.5, 2]` | Playback rates in the speed menu |
+| `strings` | `Partial<PlayerStrings>` | English | Every visible string and accessible label |
+| `articleSelector` | `string` | `"[data-article-body]"` | Element containing the word spans |
+| `highlight` | `HighlightOptions` | `{}` | `{ enabled, trailLength, clickToSeek }` |
+| `dock` | `DockOptions` | `{}` | `{ enabled }` — the floating player |
+| `autoScroll` | `"off" \| "paragraph"` | `"off"` | Scroll the spoken paragraph into view |
+| `exclusive` | `boolean` | `true` | Starting this player pauses the others |
+| `showPlaceholder` | `boolean` | `true` | Show a message when there is no audio |
+| `class` | `string` | `""` | Extra classes on the root |
+| `id` | `string` | derived | Overrides the generated element id |
 
-#### Keyboard Shortcuts
+#### Controls, and their order
 
-When the player is focused (click on it or Tab to it), the following keyboard shortcuts are available:
+`controls` sets both which controls appear and where they sit:
+
+```astro
+<AudioPlayer slug={slug} controls={["play", "volume", "progress", "highlight"]} />
+```
+
+| Name | Renders |
+|------|---------|
+| `play` | Play/pause button |
+| `progress` | Elapsed/total time above the seek bar; grows to fill the row |
+| `time` | Elapsed/total time on its own |
+| `highlight` | Word-highlighting toggle |
+| `speed` | Playback-speed menu |
+| `volume` | Mute button and volume slider |
+
+Default: `["play", "progress", "highlight", "speed", "volume"]`. Anything you leave out
+is not rendered — pass `[]` with `dock={{ enabled: true }}` for a dock-only player.
+
+#### Variants
+
+`bar` is a horizontal strip on a card. `minimal` drops the background, border, shadow
+and padding so the player borrows the page — useful inline with prose or under a title.
+`card` opens room above the controls for a title or artwork through the `before` slot.
+
+#### Slots
+
+Every slot falls back to the shipped markup, so override only what you need.
+
+| Slot | Replaces |
+|------|----------|
+| `icon-play`, `icon-pause` | Play/pause icons |
+| `icon-volume`, `icon-muted` | Volume icons |
+| `icon-highlight-on`, `icon-highlight-off` | Highlight-toggle icons |
+| `placeholder` | The "no audio" message |
+| `error` | The failed-to-load message and its retry button |
+| `before`, `after` | Arbitrary content above/below the controls |
+
+```astro
+<AudioPlayer slug={slug} audioEntry={entry} variant="card">
+  <div slot="before"><strong>{title}</strong></div>
+  <svg slot="icon-play" class="vocasync-icon vocasync-icon--play" viewBox="0 0 24 24">
+    <path d="M8 5v14l11-7z" fill="currentColor" />
+  </svg>
+</AudioPlayer>
+```
+
+#### Text and translation
+
+Every visible string and every `aria-label` comes from `strings`:
+
+```astro
+<AudioPlayer
+  slug={slug}
+  audioEntry={entry}
+  strings={{
+    label: "Écouter cet article",
+    play: "Lire",
+    pause: "Pause",
+    unavailable: "Audio non disponible pour cet article",
+  }}
+/>
+```
+
+Keys: `label`, `loading`, `unavailable`, `error`, `retry`, `play`, `pause`, `seek`,
+`mute`, `unmute`, `volume`, `speed`, `highlightOn`, `highlightOff`. Anything you omit
+keeps its English default.
+
+#### Events
+
+The root element dispatches bubbling `CustomEvent`s, so you can hook analytics or
+build your own UI alongside the player without forking it:
+
+`vocasync:ready`, `vocasync:play`, `vocasync:pause`, `vocasync:ended`,
+`vocasync:error`, `vocasync:ratechange`, `vocasync:wordchange`.
+
+```js
+document.querySelector(".vocasync-player")
+  .addEventListener("vocasync:wordchange", (e) => {
+    // e.detail is { index, el } or null during silence between words
+  });
+```
+
+#### Keyboard shortcuts
+
+Available when focus is inside the player.
 
 | Key | Action |
 |-----|--------|
-| `Space` | Play/Pause |
-| `←` Left Arrow | Seek backward 5 seconds |
-| `→` Right Arrow | Seek forward 5 seconds |
+| `Space` | Play/pause |
+| `←` / `→` | Seek 5 seconds |
 | `M` | Toggle mute |
 | `H` | Toggle word highlighting |
-
-#### Highlighting Toggle
-
-The player includes a highlighter icon button that allows users to toggle word highlighting on/off during playback. This is useful for users who find the highlighting distracting or prefer to just listen.
-
-#### Click-to-Seek
-
-When `enableClickToSeek` is enabled (default), clicking on any word in the article will:
-1. Seek the audio to that word's timestamp
-2. Start playback if paused
-
-This is useful for jumping to specific parts of an article. Disable it with `enableClickToSeek={false}` if you prefer words to not be interactive.
+| `Esc` | Close the speed menu |
 
 ### Word Highlighting
 
-For word highlighting to work, wrap your article content with `data-article-body`:
+Wrap your article content so the player can find the word spans:
 
 ```astro
 <div data-article-body>
-  <Content />  <!-- Your markdown content -->
+  <Content />
 </div>
 ```
 
-The rehype plugin wraps each word in a `<span>` with timing data at build time.
+The rehype plugin wraps each word in a `<span class="vocasync-word" data-i data-n>` at
+build time. `data-i` is the word's start index in the alignment stream and `data-n` is
+how many alignment tokens it consumes — a visible word can span several, since "$50" is
+spoken as two.
+
+Clicking a word seeks to it. That is independent of the highlighting toggle, so a
+reader who turns highlighting off keeps click-to-seek.
+
+## Headless usage
+
+If you want entirely your own markup, import the engine and skip the component. This
+API is covered by semver from 2.0.0.
+
+```ts
+import { createPlayer } from "@vocasync/astro/player-core";
+
+const player = createPlayer(document.querySelector(".my-player"));
+// player.pause(); player.destroy();
+```
+
+`createPlayer` reads its configuration from a
+`<script type="application/json" class="vocasync-data">` inside the element, and finds
+controls by `data-action` and `data-state` attributes — see the shipped component for
+the shape it expects.
+
+Lower-level pieces are exported too, for building something quite different:
+
+```ts
+import {
+  computeSpanTimings, // visible units -> time spans
+  spanAtTime,         // the span active at t, or null during silence
+  idxForTime,
+  createHighlighter,
+  resolveAudioSrc,
+} from "@vocasync/astro/player-core";
+```
+
+Headless consumers still need `content.css` for the word-highlighting styles, but can
+skip `player.css`:
+
+```css
+@import "@vocasync/astro/styles/content.css";
+```
 
 ## Supported Languages
 
@@ -564,37 +699,268 @@ Add your `.env` file to `.gitignore`:
 .env.local
 ```
 
-## Customizing Styles
+## Theming
 
-Override CSS variables to match your theme:
+The player is designed to disappear into your site. Every visual decision is a CSS
+custom property, and every rule it ships sits in a cascade layer *and* is wrapped in
+`:where()` — so it has zero specificity and any rule you write beats it, whatever your
+import order. You should never need `!important`.
+
+The stylesheet is injected for you. Pass `styles: false` to the integration if you
+would rather import it yourself.
+
+### Start with four seeds
 
 ```css
 :root {
-  /* Player colors */
-  --vocasync-primary: #3b82f6;
-  --vocasync-primary-content: white;
-  --vocasync-surface: #f8fafc;
-  --vocasync-border: #e2e8f0;
-  --vocasync-text: #1e293b;
-  --vocasync-text-muted: #64748b;
-  
-  /* Word highlighting */
-  --vocasync-highlight: #10b981;
-  --vocasync-highlight-text: white;
-  --vocasync-highlight-active-opacity: 0.25;
-  --vocasync-highlight-trail-opacity: 0.12;
-}
-
-/* Dark mode */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --vocasync-surface: #1e293b;
-    --vocasync-border: #334155;
-    --vocasync-text: #f1f5f9;
-    --vocasync-text-muted: #94a3b8;
-  }
+  --vocasync-accent: #7c3aed;
+  --vocasync-surface: #ffffff;
+  --vocasync-text: #1e1b2e;
+  --vocasync-highlight: #f59e0b;
 }
 ```
+
+Borders, muted text, hover states, the track behind the progress bar and the contrast
+colour on the play button all derive from those four. Override any derived token on
+its own if a derivation is not what you wanted.
+
+### Better: point them at tokens you already have
+
+```css
+:root {
+  --vocasync-accent: var(--color-primary);
+  --vocasync-surface: var(--color-card);
+  --vocasync-text: var(--color-text);
+}
+```
+
+Now the player follows your palette *and* your dark mode, because your tokens already
+flip. For shadcn/ui and Tailwind that is a single import:
+
+```css
+@import "@vocasync/astro/styles/preset-shadcn.css";
+```
+
+### Dark mode
+
+Recognised with no configuration: the OS preference, plus `.dark`,
+`[data-theme="dark"]` and `[data-mode="dark"]` — which covers Tailwind, next-themes,
+daisyUI and Starlight. An explicit `.light`, `[data-theme="light"]` or
+`data-vocasync-scheme="light"` opts out of the OS preference.
+
+If your site signals dark mode some other way, name the selector:
+
+```js
+vocasync({ theme: { darkSelector: '[data-appearance="night"]' } })
+```
+
+### Token reference
+
+**Colour — seeds**
+
+| Token | Default | Notes |
+|-------|---------|-------|
+| `--vocasync-accent` | `#3b82f6` | Play button, progress fill, slider thumbs |
+| `--vocasync-surface` | `#f8fafc` | Player background |
+| `--vocasync-text` | `#1e293b` | Primary text |
+| `--vocasync-highlight` | `#10b981` | The word currently being spoken |
+
+These four are registered with `@property`, so assigning something that is not a colour
+falls back instead of blanking the component.
+
+**Colour — derived** (override individually if you want)
+
+| Token | Derived from |
+|-------|--------------|
+| `--vocasync-accent-hover` | accent, darkened |
+| `--vocasync-accent-content` | black or white, whichever reads on the accent |
+| `--vocasync-surface-raised` | surface, lightened — menus and the dock |
+| `--vocasync-text-muted` | text mixed toward surface |
+| `--vocasync-text-faint` | text mixed further toward surface |
+| `--vocasync-border` | text mixed heavily toward surface |
+| `--vocasync-track` | the unfilled part of a slider |
+| `--vocasync-highlight-active-bg` | highlight at 25% |
+| `--vocasync-highlight-trail-bg` | highlight at 12% |
+| `--vocasync-highlight-active-text` | unset — the active word keeps the prose colour |
+| `--vocasync-l-threshold` | `0.623` — lightness at which `accent-content` flips to black. Perceptual, not a WCAG measurement; raise it if your accent needs dark text sooner |
+
+**Typography**
+
+| Token | Default |
+|-------|---------|
+| `--vocasync-font-family` | `inherit` |
+| `--vocasync-font-size` | `0.875rem` |
+| `--vocasync-font-size-sm` | `0.75rem` |
+| `--vocasync-font-weight` | `400` |
+| `--vocasync-font-weight-medium` | `500` |
+| `--vocasync-line-height` | `1.4` |
+| `--vocasync-numeric` | `tabular-nums` |
+
+**Density and size** — `--vocasync-density` multiplies all of the following, so one
+value rescales the player. The `size` prop sets it per player.
+
+| Token | Default |
+|-------|---------|
+| `--vocasync-density` | `1` |
+| `--vocasync-unit` | `0.25rem` |
+| `--vocasync-gap` | `0.75rem` |
+| `--vocasync-gap-sm` | `0.25rem` |
+| `--vocasync-padding` | `1rem` |
+| `--vocasync-control-size` | `2.5rem` |
+| `--vocasync-control-size-sm` | `2rem` |
+| `--vocasync-icon-size` | `1.25rem` |
+
+**Shape**
+
+| Token | Default |
+|-------|---------|
+| `--vocasync-radius` | `0.75rem` |
+| `--vocasync-radius-control` | `0.375rem` |
+| `--vocasync-radius-menu` | `0.5rem` |
+| `--vocasync-radius-pill` | `9999px` |
+| `--vocasync-word-radius` | `0.125rem` |
+| `--vocasync-border-width` | `1px` |
+
+**Sliders, dock, focus, elevation, motion, layering**
+
+| Token | Default |
+|-------|---------|
+| `--vocasync-slider-height` | `0.375rem` |
+| `--vocasync-slider-thumb-size` | `1rem` |
+| `--vocasync-volume-width` | `4rem` |
+| `--vocasync-dock-height` | `3.5rem` |
+| `--vocasync-dock-offset` | `1rem` |
+| `--vocasync-dock-width` | `20rem` |
+| `--vocasync-focus-width` | `2px` |
+| `--vocasync-focus-offset` | `2px` |
+| `--vocasync-focus-color` | `var(--vocasync-accent)` |
+| `--vocasync-shadow-sm`, `--vocasync-shadow`, `--vocasync-shadow-lg` | subtle elevation |
+| `--vocasync-transition-fast`, `--vocasync-transition` | `150ms` / `200ms` ease |
+| `--vocasync-menu-z` | `10` |
+| `--vocasync-dock-z` | `1000` |
+
+### Stylesheets
+
+| Import | Contains |
+|--------|----------|
+| `@vocasync/astro/styles/vocasync.css` | Everything (what the integration injects) |
+| `@vocasync/astro/styles/layers.css` | The `@layer` order statement only |
+| `@vocasync/astro/styles/tokens.css` | The tokens above |
+| `@vocasync/astro/styles/content.css` | Word highlighting — needed even when headless |
+| `@vocasync/astro/styles/player.css` | The player chrome — skip it if you bring your own |
+| `@vocasync/astro/styles/preset-shadcn.css` | Maps our tokens onto a shadcn host's |
+
+Import `layers.css` first if you want the layer order pinned regardless of where your
+other imports land.
+
+## Migrating from v1
+
+**Your audio map is unchanged.** The schema stays at version 3, so there is no re-sync
+and no API spend — this release is presentation only.
+
+### Why the styling changed
+
+Astro compiles a component's scoped styles to `.vocasync-player[data-astro-cid-…]`,
+which has higher specificity than a plain class. Your own `.vocasync-player { … }` lost
+to it, and so did any Tailwind utility passed through `class`. Three `!important`
+declarations closed the rest. In practice the player could not be restyled.
+
+The CSS now ships as ordinary stylesheets, in a cascade layer, with every selector
+wrapped in `:where()`. Your rules win — layered or not, in any import order — and
+nothing needs `!important`.
+
+### Stylesheet import
+
+```diff
+- import "@vocasync/astro/styles/variables.css";
+```
+
+Delete it. The integration injects the stylesheet; pass `styles: false` if you would
+rather import `@vocasync/astro/styles/vocasync.css` yourself.
+
+### Token renames
+
+| v1 | v2 |
+|----|----|
+| `--vocasync-primary` | `--vocasync-accent` |
+| `--vocasync-primary-hover` | `--vocasync-accent-hover` |
+| `--vocasync-primary-content` | `--vocasync-accent-content` |
+| `--vocasync-surface-elevated` | `--vocasync-surface-raised` |
+| `--vocasync-border-focus` | `--vocasync-focus-color` |
+| `--vocasync-player-radius` | `--vocasync-radius` |
+| `--vocasync-player-padding` | `--vocasync-padding` |
+| `--vocasync-player-gap` | `--vocasync-gap` |
+| `--vocasync-button-size` | `--vocasync-control-size` |
+| `--vocasync-button-radius` | `--vocasync-radius-pill` |
+| `--vocasync-slider-radius` | `--vocasync-radius-pill` |
+| `--vocasync-mini-height` | `--vocasync-dock-height` |
+| `--vocasync-mini-offset` | `--vocasync-dock-offset` |
+| `--vocasync-highlight-active-opacity` | `--vocasync-highlight-active-bg` (a colour, not a number) |
+| `--vocasync-highlight-trail-opacity` | `--vocasync-highlight-trail-bg` (a colour, not a number) |
+| `--vocasync-highlight-text` | **removed** |
+| `--vocasync-transition-slow` | **removed** |
+
+`--vocasync-highlight-text` was documented but no rule ever read it, so setting it
+never did anything. `--vocasync-transition-slow` was never referenced.
+
+In most cases you can delete the overrides entirely and set the four seeds instead.
+
+### Prop changes
+
+| v1 | v2 |
+|----|----|
+| `label="…"` | `strings={{ label: "…" }}` |
+| `enableMiniPlayer={false}` | `dock={{ enabled: false }}` |
+| `enableHighlighting={false}` | `highlight={{ enabled: false }}` |
+| `enableClickToSeek={false}` | `highlight={{ clickToSeek: false }}` |
+| `trailLength={4}` | `highlight={{ trailLength: 4 }}` |
+
+```diff
+  <AudioPlayer
+    slug={slug}
+    audioEntry={audioEntry}
+-   label={`Listen to "${title}"`}
+-   enableMiniPlayer={true}
+-   enableHighlighting={true}
+-   trailLength={4}
++   strings={{ label: `Listen to "${title}"` }}
++   highlight={{ trailLength: 4 }}
+  />
+```
+
+### Behaviour changes
+
+- **Autoscroll is off by default.** It used to follow the spoken word with no way to
+  stop it, taking over the reader's scroll position. Pass `autoScroll="paragraph"` to
+  keep the old behaviour.
+- **Starting one player pauses the others.** Pass `exclusive={false}` to allow overlap.
+- **A failed load shows an error state with a retry**, rather than leaving controls
+  that look interactive but do nothing.
+- **Click-to-seek no longer depends on highlighting.** Turning highlighting off used to
+  disable it silently.
+
+### Rehype plugin
+
+`classPrefix` is removed. It renamed the word-span class while `.vocasync-word` stayed
+hardcoded in the stylesheet, the player and the WordPress plugin, so setting it
+silently broke highlighting. Use `extraWordClass` to add a class alongside
+`vocasync-word`, or drive the engine headlessly for entirely different markup.
+
+```diff
+- [rehypeAudioWords, { collectionName, audioMapPath, classPrefix: "vocasync" }]
++ [rehypeAudioWords, { collectionName, audioMapPath }]
+```
+
+### Astro 7
+
+Astro 7 replaced its default Markdown processor, so `@astrojs/markdown-remark` is no
+longer installed with it — and rehype plugins do not run without it. On Astro 7:
+
+```bash
+bun add @astrojs/markdown-remark
+```
+
+Astro 4, 5 and 6 need nothing extra.
 
 ## Troubleshooting
 
