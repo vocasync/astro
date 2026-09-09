@@ -62,7 +62,7 @@ import { getEntry, render } from "astro:content";
 const post = await getEntry("blog", "post");
 const { Content } = await render(post);
 ---
-<html><head><title>smoke</title></head><body>
+<html><head><meta charset="utf-8" /><title>smoke</title></head><body>
 <AudioPlayer slug="post" audioEntry={audioMap.entries.post} />
 <div data-article-body><Content /></div>
 </body></html>
@@ -78,7 +78,7 @@ import { getEntry, render } from "astro:content";
 const post = await getEntry("blog", "post");
 const { Content } = await render(post);
 ---
-<html><head><title>smoke multi</title></head><body>
+<html><head><meta charset="utf-8" /><title>smoke multi</title></head><body>
 <section>
   <AudioPlayer slug="post" audioEntry={audioMap.entries.post} articleSelector="#body-a" />
   <div id="body-a" data-article-body><Content /></div>
@@ -104,11 +104,27 @@ inline_page() {
     const fs = require("fs");
     const html = fs.readFileSync(process.argv[1], "utf8");
     const js = fs.readFileSync(process.env.BUNDLE_PATH, "utf8");
+    // A replacer FUNCTION, not a string. In a string replacement, dollar-ampersand
+    // and dollar-quote are substitution patterns, and minified JS contains those
+    // sequences; with a string this silently truncated the bundle and spliced the
+    // rest of the document into the middle of it.
     const out = html.replace(
       /<script type="module" src="\/_astro\/[^"]+"><\/script>/,
-      `<script type="module" data-vocasync-bundle>${js}</script>`
+      () => `<script type="module" data-vocasync-bundle>${js}</script>`
     );
     if (out === html) { console.error("could not inline the player bundle"); process.exit(1); }
+    // Prove the bundle survived intact. A truncated inline script still produces a
+    // plausible-looking fixture, and the tests would then be driving a page where the
+    // player never booted -- which is worse than no fixture at all.
+    const embedded = out.match(/<script type="module" data-vocasync-bundle>([\s\S]*?)<\/script>/);
+    if (!embedded || embedded[1].length !== js.length) {
+      console.error("inlined bundle was truncated: " + (embedded ? embedded[1].length : 0) + " of " + js.length + " bytes");
+      process.exit(1);
+    }
+    try { new Function(embedded[1]); } catch (e) {
+      console.error("inlined bundle is not valid JavaScript: " + e.message);
+      process.exit(1);
+    }
     fs.writeFileSync(process.argv[2], out);
   ' "$built" "$dest"
 }

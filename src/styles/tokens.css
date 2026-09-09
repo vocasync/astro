@@ -93,12 +93,17 @@
      */
     --vocasync-density: 1;
     --vocasync-unit: 0.25rem;
-    --vocasync-gap: calc(var(--vocasync-unit) * 3 * var(--vocasync-density));
-    --vocasync-gap-sm: calc(var(--vocasync-unit) * 1 * var(--vocasync-density));
-    --vocasync-padding: calc(var(--vocasync-unit) * 4 * var(--vocasync-density));
-    --vocasync-control-size: calc(2.5rem * var(--vocasync-density));
-    --vocasync-control-size-sm: calc(2rem * var(--vocasync-density));
-    --vocasync-icon-size: calc(1.25rem * var(--vocasync-density));
+    /* Undensified base sizes. The density multiplier is applied where each of these is
+     * USED, not here: a custom property resolves its var() references on the element
+     * that declares it, so multiplying at :root would bake in density 1 and a
+     * per-player override -- which is exactly what `size` does -- could never take
+     * effect. Set any of these directly to change a size without touching density. */
+    --vocasync-gap: calc(var(--vocasync-unit) * 3);
+    --vocasync-gap-sm: var(--vocasync-unit);
+    --vocasync-padding: calc(var(--vocasync-unit) * 4);
+    --vocasync-control-size: 2.5rem;
+    --vocasync-control-size-sm: 2rem;
+    --vocasync-icon-size: 1.25rem;
 
     /* ------------------------------------------------------------------ shape */
     --vocasync-radius: 0.75rem;

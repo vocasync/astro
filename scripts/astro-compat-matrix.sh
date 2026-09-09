@@ -95,7 +95,7 @@ import { getEntry, render } from "astro:content";
 const post = await getEntry("blog", "post");
 const { Content } = await render(post);
 ---
-<html><body>
+<html><head><meta charset="utf-8" /></head><body>
 <AudioPlayer slug="post" audioEntry={audioMap.entries.post} />
 <div data-article-body><Content /></div>
 </body></html>
@@ -117,7 +117,7 @@ import { getEntry, render } from "astro:content";
 const post = await getEntry("blog", "post");
 const { Content } = await render(post);
 ---
-<html><head><ClientRouter /></head><body>
+<html><head><meta charset="utf-8" /><ClientRouter /></head><body>
 <AudioPlayer slug="post" audioEntry={audioMap.entries.post} />
 <div data-article-body><Content /></div>
 </body></html>

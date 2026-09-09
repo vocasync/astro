@@ -121,3 +121,61 @@ describe("rehypeAudioWords", () => {
     expect(collectSpans(tree)).toEqual([]);
   });
 });
+
+describe("extraWordClass", () => {
+  function classesOf(tree: Root): string[][] {
+    const out: string[][] = [];
+    const walk = (node: Root | Element) => {
+      for (const child of "children" in node ? node.children : []) {
+        if (child.type !== "element") continue;
+        const el = child as Element;
+        const cls = el.properties?.className;
+        if (Array.isArray(cls) && (cls as string[]).includes("vocasync-word")) {
+          out.push(cls as string[]);
+        } else {
+          walk(el);
+        }
+      }
+    };
+    walk(tree);
+    return out;
+  }
+
+  function treeWith(text: string): Root {
+    return {
+      type: "root",
+      children: [
+        {
+          type: "element",
+          tagName: "p",
+          properties: {},
+          children: [{ type: "text", value: text }],
+        },
+      ],
+    };
+  }
+
+  test("adds a class alongside vocasync-word rather than replacing it", () => {
+    // The removed `classPrefix` option renamed the span class while `.vocasync-word`
+    // stayed hardcoded in the stylesheet, the player and the WordPress fork, so
+    // setting it silently broke highlighting. The replacement is additive.
+    const tree = treeWith("I paid");
+    const transformer = rehypeAudioWords({
+      audioMapPath,
+      collectionName: "blog",
+      extraWordClass: "prose-word",
+    });
+    // @ts-expect-error unified plugin transformer signature (tree, file)
+    transformer(tree, { path: "/x/src/content/blog/hello.md" });
+    expect(classesOf(tree)).toEqual([
+      ["vocasync-word", "prose-word"],
+      ["vocasync-word", "prose-word"],
+    ]);
+  });
+
+  test("emits only vocasync-word by default", () => {
+    const tree = treeWith("I paid");
+    run(tree);
+    expect(classesOf(tree)).toEqual([["vocasync-word"], ["vocasync-word"]]);
+  });
+});

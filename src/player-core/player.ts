@@ -2,6 +2,7 @@ import { createHighlighter, type Highlighter } from "./highlighter.js";
 import { resolveAudioSrc } from "./media-url.js";
 import * as registry from "./registry.js";
 import { registerSeekRoot } from "./seek-delegate.js";
+import { defaultStrings, describeTime, type PlayerStrings } from "./strings.js";
 import type { WordTiming } from "./timings.js";
 
 /**
@@ -15,11 +16,27 @@ import type { WordTiming } from "./timings.js";
  * longer make two instances drive the same audio element.
  */
 
-interface PlayerPayload {
+interface PlayerAudio {
   audioUrl?: string;
   words?: WordTiming[];
   duration?: number;
   publishableKey?: string;
+}
+
+interface PlayerOptions {
+  articleSelector?: string;
+  trailLength?: number;
+  highlighting?: boolean;
+  clickToSeek?: boolean;
+  autoScroll?: "off" | "paragraph";
+  dock?: boolean;
+  exclusive?: boolean;
+}
+
+interface PlayerConfig {
+  audio: PlayerAudio | null;
+  options?: PlayerOptions;
+  strings?: Partial<PlayerStrings>;
 }
 
 export interface PlayerInstance {
@@ -38,12 +55,12 @@ export function formatTime(seconds: unknown): string {
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
-function readPayload(root: HTMLElement): PlayerPayload | null {
+function readConfig(root: HTMLElement): PlayerConfig | null {
   const script = root.querySelector("script.vocasync-data");
   if (!script) return null;
   try {
     const parsed = JSON.parse(script.textContent ?? "{}");
-    return parsed && typeof parsed === "object" ? (parsed as PlayerPayload) : null;
+    return parsed && typeof parsed === "object" ? (parsed as PlayerConfig) : null;
   } catch {
     return null;
   }
@@ -63,6 +80,8 @@ export function createPlayer(root: HTMLElement): PlayerInstance | null {
 
   const loadingEl = root.querySelector('[data-state="loading"]') as HTMLElement | null;
   const placeholderEl = root.querySelector('[data-state="no-audio"]') as HTMLElement | null;
+  const errorEl = root.querySelector('[data-state="error"]') as HTMLElement | null;
+  const retryBtn = root.querySelector('[data-action="retry"]') as HTMLElement | null;
   const miniEl = root.querySelector("[data-mini-player]") as HTMLElement | null;
 
   // Scoped so the mini player's duplicate hooks never shadow the main controls.
@@ -84,12 +103,18 @@ export function createPlayer(root: HTMLElement): PlayerInstance | null {
   const miniProgressBar = miniEl?.querySelector("[data-progress]") as HTMLElement | null;
   const miniTimeEl = miniEl?.querySelector('[data-time="current"]') as HTMLElement | null;
 
-  const articleSelector = root.dataset.articleSelector || "[data-article-body]";
-  const trailLength = Number.parseInt(root.dataset.trailLength ?? "", 10);
-  const miniEnabled = root.dataset.enableMini === "true" && !!miniEl;
-  const clickToSeekEnabled = root.dataset.enableClickToSeek === "true";
+  const config = readConfig(root);
+  const opts = config?.options ?? {};
+  const strings: PlayerStrings = { ...defaultStrings, ...(config?.strings ?? {}) };
 
-  let highlightingEnabled = root.dataset.enableHighlighting === "true";
+  const articleSelector = opts.articleSelector || "[data-article-body]";
+  const trailLength = Number.isFinite(opts.trailLength) ? (opts.trailLength as number) : 4;
+  const miniEnabled = opts.dock !== false && !!miniEl;
+  const clickToSeekEnabled = opts.clickToSeek !== false;
+  const autoScrollEnabled = opts.autoScroll === "paragraph";
+  const exclusive = opts.exclusive !== false;
+
+  let highlightingEnabled = opts.highlighting !== false;
   let isPlaying = false;
   let miniVisible = false;
   let miniDismissed = false;
@@ -107,10 +132,24 @@ export function createPlayer(root: HTMLElement): PlayerInstance | null {
 
   /* ---------------------------------------------------------------- rendering */
 
-  function setState(state: "loading" | "no-audio" | "ready") {
+  type State = "loading" | "no-audio" | "error" | "ready";
+
+  function setState(state: State) {
     if (loadingEl) loadingEl.hidden = state !== "loading";
     if (placeholderEl) placeholderEl.hidden = state !== "no-audio";
+    if (errorEl) errorEl.hidden = state !== "error";
     controlsEl.hidden = state !== "ready";
+    root.setAttribute("data-player-state", state);
+  }
+
+  /**
+   * Events on the root, so a host can hook analytics without owning the markup.
+   * Nothing was emitted before, so there was no way in at all short of forking.
+   */
+  function emit(name: string, detail?: unknown) {
+    root.dispatchEvent(
+      new CustomEvent(`vocasync:${name}`, { detail, bubbles: true, composed: true })
+    );
   }
 
   function swapIcons(scope: Element | null, showFirst: string, hideFirst: string, on_: boolean) {
@@ -121,7 +160,8 @@ export function createPlayer(root: HTMLElement): PlayerInstance | null {
 
   function renderPlayState(playing: boolean) {
     swapIcons(playBtn, ".vocasync-icon--play", ".vocasync-icon--pause", playing);
-    playBtn?.setAttribute("aria-label", playing ? "Pause" : "Play");
+    playBtn?.setAttribute("aria-label", playing ? strings.pause : strings.play);
+    miniPlayBtn?.setAttribute("aria-label", playing ? strings.pause : strings.play);
     swapIcons(miniPlayBtn, ".vocasync-icon--play", ".vocasync-icon--pause", playing);
   }
 
@@ -133,6 +173,10 @@ export function createPlayer(root: HTMLElement): PlayerInstance | null {
   function renderVolume() {
     const silent = audio.muted || audio.volume === 0;
     swapIcons(muteBtn, ".vocasync-icon--volume-high", ".vocasync-icon--volume-mute", silent);
+    muteBtn?.setAttribute("aria-label", silent ? strings.unmute : strings.mute);
+    if (volumeInput) {
+      volumeInput.setAttribute("aria-valuetext", `${Math.round(audio.volume * 100)}%`);
+    }
   }
 
   function renderHighlightButton() {
@@ -153,7 +197,14 @@ export function createPlayer(root: HTMLElement): PlayerInstance | null {
   function renderProgress() {
     const t = audio.currentTime;
     if (currentTimeEl) currentTimeEl.textContent = formatTime(t);
-    if (progressInput) progressInput.value = String(t);
+    if (progressInput) {
+      progressInput.value = String(t);
+      // Without this a screen reader reads the raw seconds: "43".
+      progressInput.setAttribute(
+        "aria-valuetext",
+        strings.seekPosition(describeTime(t), describeTime(audio.duration))
+      );
+    }
     if (miniTimeEl) miniTimeEl.textContent = formatTime(t);
     if (miniProgressBar) {
       const percent = audio.duration ? (t / audio.duration) * 100 : 0;
@@ -248,9 +299,9 @@ export function createPlayer(root: HTMLElement): PlayerInstance | null {
 
   /* ---------------------------------------------------------------------- init */
 
-  const payload = readPayload(root);
-  const src = resolveAudioSrc(payload?.audioUrl, payload?.publishableKey, doc.baseURI);
-  if (!payload || !src) {
+  const audioConfig = config?.audio ?? null;
+  const src = resolveAudioSrc(audioConfig?.audioUrl, audioConfig?.publishableKey, doc.baseURI);
+  if (!audioConfig || !src) {
     setState("no-audio");
     return null;
   }
@@ -285,9 +336,10 @@ export function createPlayer(root: HTMLElement): PlayerInstance | null {
   on(audio, "play", () => {
     isPlaying = true;
     miniDismissed = false;
-    registry.pauseOthers(instance);
+    if (exclusive) registry.pauseOthers(instance);
     renderPlayState(true);
     startLoop();
+    emit("play");
   });
 
   on(audio, "pause", () => {
@@ -295,12 +347,14 @@ export function createPlayer(root: HTMLElement): PlayerInstance | null {
     renderPlayState(false);
     stopLoop();
     setMiniVisible(false);
+    emit("pause");
   });
 
   on(audio, "ended", () => {
     isPlaying = false;
     renderPlayState(false);
     stopLoop();
+    emit("ended");
   });
 
   on(audio, "seeking", updateHighlighting);
@@ -315,7 +369,17 @@ export function createPlayer(root: HTMLElement): PlayerInstance | null {
   on(audio, "error", () => {
     stopLoop();
     highlighter?.clear();
-    setState("no-audio");
+    setState("error");
+    emit("error", { src: audio.currentSrc || audio.src });
+  });
+
+  on(retryBtn, "click", () => {
+    setState("loading");
+    // Re-assigning the same src is not enough; the element caches the failure.
+    audio.removeAttribute("src");
+    audio.load();
+    audio.src = src;
+    audio.load();
   });
 
   on(audio, "loadedmetadata", () => {
@@ -348,7 +412,9 @@ export function createPlayer(root: HTMLElement): PlayerInstance | null {
   });
 
   on(speedBtn, "click", () => {
-    if (speedMenu) speedMenu.hidden = !speedMenu.hidden;
+    if (!speedMenu) return;
+    speedMenu.hidden = !speedMenu.hidden;
+    speedBtn?.setAttribute("aria-expanded", speedMenu.hidden ? "false" : "true");
   });
 
   on(speedMenu, "click", (event) => {
@@ -363,8 +429,13 @@ export function createPlayer(root: HTMLElement): PlayerInstance | null {
       step.removeAttribute("data-active");
     }
     btn.setAttribute("data-active", "");
-    if (speedLabel) speedLabel.textContent = `${speed}x`;
+    if (speedLabel) speedLabel.textContent = strings.speedValue(speed);
+    for (const step of Array.from(speedMenu.querySelectorAll(SPEED_STEP_SELECTOR))) {
+      step.setAttribute("aria-checked", step === btn ? "true" : "false");
+    }
     speedMenu.hidden = true;
+    speedBtn?.setAttribute("aria-expanded", "false");
+    emit("ratechange", { rate: speed });
   });
 
   on(doc, "click", (event) => {
@@ -372,6 +443,7 @@ export function createPlayer(root: HTMLElement): PlayerInstance | null {
     const target = event.target as Node | null;
     if (speedBtn?.contains(target as Node) || speedMenu.contains(target as Node)) return;
     speedMenu.hidden = true;
+    speedBtn?.setAttribute("aria-expanded", "false");
   });
 
   on(root, "keydown", (event) => {
@@ -399,6 +471,14 @@ export function createPlayer(root: HTMLElement): PlayerInstance | null {
         e.preventDefault();
         toggleHighlighting();
         break;
+      case "Escape":
+        if (speedMenu && !speedMenu.hidden) {
+          e.preventDefault();
+          speedMenu.hidden = true;
+          speedBtn?.setAttribute("aria-expanded", "false");
+          (speedBtn as HTMLElement | null)?.focus();
+        }
+        break;
     }
   });
 
@@ -406,7 +486,7 @@ export function createPlayer(root: HTMLElement): PlayerInstance | null {
 
   function initHighlighting() {
     if (destroyed) return;
-    const words = Array.isArray(payload?.words) ? payload.words : [];
+    const words = Array.isArray(audioConfig?.words) ? audioConfig.words : [];
     if (!words.length) return;
 
     const articleRoot = doc.querySelector(articleSelector);
@@ -416,9 +496,11 @@ export function createPlayer(root: HTMLElement): PlayerInstance | null {
       articleRoot,
       words,
       trailLength: Number.isFinite(trailLength) ? trailLength : 4,
-      autoScroll: true,
+      autoScroll: autoScrollEnabled,
       prefersReducedMotion: () =>
         view.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ?? false,
+      onWordChange: (el) =>
+        emit("wordchange", el ? { index: Number.parseInt(el.dataset.i ?? "", 10), el } : null),
     });
 
     if (clickToSeekEnabled) {
@@ -444,6 +526,7 @@ export function createPlayer(root: HTMLElement): PlayerInstance | null {
   renderHighlightButton();
   renderVolume();
   setState("ready");
+  emit("ready");
   registry.register(instance);
   root.setAttribute("data-vocasync-ready", "");
 

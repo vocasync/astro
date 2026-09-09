@@ -16,8 +16,8 @@
   :where(.vocasync-player) {
     display: flex;
     flex-direction: column;
-    gap: var(--vocasync-gap);
-    padding: var(--vocasync-padding);
+    gap: calc(var(--vocasync-gap) * var(--vocasync-density));
+    padding: calc(var(--vocasync-padding) * var(--vocasync-density));
     background: var(--vocasync-surface);
     border: var(--vocasync-border-width) solid var(--vocasync-border);
     border-radius: var(--vocasync-radius);
@@ -41,7 +41,8 @@
    * in :where() means the attribute selector wins on its own, so none of this needs
    * !important the way the previous stylesheet did. */
   :where(.vocasync-player__loading),
-  :where(.vocasync-player__placeholder) {
+  :where(.vocasync-player__placeholder),
+  :where(.vocasync-player__error) {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -54,14 +55,35 @@
   :where(.vocasync-player__controls) {
     display: flex;
     align-items: center;
-    gap: var(--vocasync-gap);
+    gap: calc(var(--vocasync-gap) * var(--vocasync-density));
     flex-wrap: wrap;
   }
 
   :where(.vocasync-player__loading)[hidden],
   :where(.vocasync-player__placeholder)[hidden],
+  :where(.vocasync-player__error)[hidden],
   :where(.vocasync-player__controls)[hidden] {
     display: none;
+  }
+
+  :where(.vocasync-player__retry-btn) {
+    padding: 0.25rem calc(var(--vocasync-unit) * 3);
+    font: inherit;
+    font-size: var(--vocasync-font-size-sm);
+    color: var(--vocasync-text);
+    background: var(--vocasync-surface-raised);
+    border: var(--vocasync-border-width) solid var(--vocasync-border);
+    border-radius: var(--vocasync-radius-control);
+    cursor: pointer;
+  }
+
+  :where(.vocasync-player__retry-btn):hover {
+    border-color: var(--vocasync-accent);
+  }
+
+  :where(.vocasync-player__retry-btn):focus-visible {
+    outline: var(--vocasync-focus-width) solid var(--vocasync-focus-color);
+    outline-offset: var(--vocasync-focus-offset);
   }
 
   :where(.vocasync-player__spinner) {
@@ -86,8 +108,8 @@
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    width: var(--vocasync-control-size);
-    height: var(--vocasync-control-size);
+    width: calc(var(--vocasync-control-size) * var(--vocasync-density));
+    height: calc(var(--vocasync-control-size) * var(--vocasync-density));
     background: var(--vocasync-accent);
     color: var(--vocasync-accent-content);
     border: none;
@@ -101,8 +123,8 @@
   }
 
   :where(.vocasync-icon) {
-    width: var(--vocasync-icon-size);
-    height: var(--vocasync-icon-size);
+    width: calc(var(--vocasync-icon-size) * var(--vocasync-density));
+    height: calc(var(--vocasync-icon-size) * var(--vocasync-density));
   }
 
   :where(.vocasync-hidden) {
@@ -113,8 +135,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    width: var(--vocasync-control-size-sm);
-    height: var(--vocasync-control-size-sm);
+    width: calc(var(--vocasync-control-size-sm) * var(--vocasync-density));
+    height: calc(var(--vocasync-control-size-sm) * var(--vocasync-density));
     color: var(--vocasync-text-muted);
     background: transparent;
     border: none;
@@ -139,14 +161,17 @@
   :where(.vocasync-player__progress-section) {
     display: flex;
     flex-direction: column;
-    gap: var(--vocasync-gap-sm);
+    gap: calc(var(--vocasync-gap-sm) * var(--vocasync-density));
+    /* Grows so the controls listed after it sit at the trailing edge. The previous
+     * markup achieved that with a wrapper element; `controls` ordering makes the row
+     * flat, so the flex behaviour has to carry it. */
     flex: 1;
     min-width: 0;
   }
 
   :where(.vocasync-player__time) {
     display: flex;
-    gap: var(--vocasync-gap-sm);
+    gap: calc(var(--vocasync-gap-sm) * var(--vocasync-density));
     font-size: var(--vocasync-font-size-sm);
     font-variant-numeric: var(--vocasync-numeric);
     color: var(--vocasync-text-muted);
@@ -197,12 +222,6 @@
 
   /* ------------------------------------------------------------------ grouped */
 
-  :where(.vocasync-player__button-group) {
-    display: flex;
-    align-items: center;
-    gap: var(--vocasync-gap-sm);
-  }
-
   :where(.vocasync-player__speed) {
     position: relative;
   }
@@ -240,7 +259,7 @@
     display: flex;
     flex-direction: column;
     gap: 0.125rem;
-    padding: var(--vocasync-gap-sm);
+    padding: calc(var(--vocasync-gap-sm) * var(--vocasync-density));
     margin-bottom: calc(var(--vocasync-unit) * 2);
     background: var(--vocasync-surface-raised);
     border: var(--vocasync-border-width) solid var(--vocasync-border);
@@ -281,7 +300,7 @@
   :where(.vocasync-player__volume) {
     display: flex;
     align-items: center;
-    gap: var(--vocasync-gap-sm);
+    gap: calc(var(--vocasync-gap-sm) * var(--vocasync-density));
   }
 
   :where(.vocasync-player__volume-slider) {
@@ -302,9 +321,9 @@
     inset-inline: var(--vocasync-dock-offset);
     display: flex;
     align-items: center;
-    gap: var(--vocasync-gap);
+    gap: calc(var(--vocasync-gap) * var(--vocasync-density));
     height: var(--vocasync-dock-height);
-    padding: 0 var(--vocasync-padding);
+    padding: 0 calc(var(--vocasync-padding) * var(--vocasync-density));
     background: var(--vocasync-surface-raised);
     color: var(--vocasync-text);
     border: var(--vocasync-border-width) solid var(--vocasync-border);
@@ -343,8 +362,8 @@
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    width: var(--vocasync-control-size-sm);
-    height: var(--vocasync-control-size-sm);
+    width: calc(var(--vocasync-control-size-sm) * var(--vocasync-density));
+    height: calc(var(--vocasync-control-size-sm) * var(--vocasync-density));
     background: var(--vocasync-accent);
     color: var(--vocasync-accent-content);
     border: none;
@@ -434,5 +453,40 @@
     :where(.vocasync-mini-player__play-btn) {
       border: 1px solid ButtonText;
     }
+  }
+}
+
+/* ---------------------------------------------------------------------- variants
+ * Shape presets, selected with the `variant` and `size` props. They are attributes on
+ * the root as well, so they double as hooks for your own CSS.
+ */
+@layer vocasync.variants {
+  /* Borrows the page instead of sitting on a card: for a player that goes inline with
+   * prose or under a title. Usually what "it doesn't match my site" actually means. */
+  :where(.vocasync-player)[data-variant="minimal"] {
+    background: none;
+    border: none;
+    box-shadow: none;
+    padding: 0;
+    border-radius: 0;
+  }
+
+  /* Presents the audio as an object in its own right, with room above the controls
+   * for a title or artwork passed through the `before` slot. */
+  :where(.vocasync-player)[data-variant="card"] {
+    gap: calc(var(--vocasync-padding) * var(--vocasync-density));
+    padding: calc(var(--vocasync-padding) * var(--vocasync-density));
+  }
+
+  :where(.vocasync-player)[data-size="sm"] {
+    --vocasync-density: 0.85;
+    --vocasync-font-size: 0.8125rem;
+    --vocasync-font-size-sm: 0.6875rem;
+  }
+
+  :where(.vocasync-player)[data-size="lg"] {
+    --vocasync-density: 1.2;
+    --vocasync-font-size: 1rem;
+    --vocasync-font-size-sm: 0.875rem;
   }
 }

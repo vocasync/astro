@@ -1,273 +1,285 @@
 ---
 /**
- * VocaSync AudioPlayer Component
+ * VocaSync AudioPlayer.
  *
- * A full-featured audio player with word-level highlighting support.
- * Uses native HTML5 audio and range inputs - no external dependencies.
+ * Markup only. Playback, highlighting and the view-transition lifecycle live in
+ * `@vocasync/astro/player-core`, which the hoisted script below installs once per page.
  *
  * @example
  * ```astro
  * <AudioPlayer
  *   slug={post.slug}
- *   label="Listen to this article"
- *   enableMiniPlayer={true}
+ *   variant="minimal"
+ *   controls={["play", "progress", "speed"]}
+ *   strings={{ play: "Lire", pause: "Pause" }}
  * />
  * ```
  */
-
-import type { AlignedWord } from "../types/index.js";
-
-interface AudioEntry {
-  audioUrl: string;
-  words?: AlignedWord[];
-  duration?: number;
-  /** Publishable key for the synthesis stream (v3 audio-map). */
-  synthesisPublishableKey?: string;
-}
-
-interface Props {
-  /** Post slug to lookup audio in audio-map */
-  slug: string;
-  /** Audio entry data (from audio-map.json import) */
-  audioEntry?: AudioEntry;
-  /** Accessible label for the player */
-  label?: string;
-  /** Show placeholder when no audio available */
-  showPlaceholder?: boolean;
-  /** Additional CSS classes */
-  class?: string;
-  /** Selector for article body (for word highlighting) */
-  articleSelector?: string;
-  /** Enable floating mini player when main player scrolls out of view */
-  enableMiniPlayer?: boolean;
-  /** Enable word highlighting during playback */
-  enableHighlighting?: boolean;
-  /** Enable click on words to seek to that position */
-  enableClickToSeek?: boolean;
-  /** Number of trailing highlighted words */
-  trailLength?: number;
-}
+import { defaultStrings } from "../player-core/strings.js";
+import type { AudioPlayerProps } from "./types.js";
+import { DEFAULT_CONTROLS } from "./types.js";
 
 const {
   slug,
   audioEntry,
-  label = "Listen to this article",
+  variant = "bar",
+  size = "md",
+  controls = DEFAULT_CONTROLS,
+  speeds = [0.5, 0.75, 1, 1.25, 1.5, 2],
+  strings = {},
+  articleSelector = "[data-article-body]",
+  highlight = {},
+  dock = {},
+  autoScroll = "off",
+  exclusive = true,
   showPlaceholder = true,
   class: className = "",
-  articleSelector = "[data-article-body]",
-  enableMiniPlayer = true,
-  enableHighlighting = true,
-  enableClickToSeek = true,
-  trailLength = 4,
-} = Astro.props;
+  id,
+} = Astro.props as AudioPlayerProps;
 
-// Generate unique IDs for this player instance
-const playerId = `vocasync-player-${slug.replace(/[^a-z0-9]/gi, "-")}`;
-const audioId = `${playerId}-audio`;
+const s = { ...defaultStrings, ...strings };
 
-// The payload rides in a <script type="application/json"> rather than an attribute.
-// Attribute-escaping inflates this JSON by ~1.6x -- every `"` becomes `&quot;` -- which
-// on a 2,000-word article is hundreds of kilobytes of entities. In a JSON script tag
-// only `<` needs neutralising, so that it cannot terminate the element early.
-const audioDataJson = audioEntry
-  ? JSON.stringify({
-      audioUrl: audioEntry.audioUrl,
-      words: audioEntry.words || [],
-      duration: audioEntry.duration,
-      publishableKey: audioEntry.synthesisPublishableKey,
-    }).replace(/</g, "\\u003c")
-  : null;
+const { enabled: highlightEnabled = true, trailLength = 4, clickToSeek = true } = highlight;
+const { enabled: dockEnabled = true } = dock;
+
+const playerId = id ?? `vocasync-player-${slug.replace(/[^a-z0-9]/gi, "-")}`;
+
+// One config object rather than a scatter of data-* attributes. It also carries the
+// audio payload: attribute-escaping JSON inflates it ~1.6x, since every `"` becomes
+// `&quot;`. Only `<` needs neutralising inside a JSON script tag.
+const config = {
+  audio: audioEntry
+    ? {
+        audioUrl: audioEntry.audioUrl,
+        words: audioEntry.words ?? [],
+        duration: audioEntry.duration,
+        publishableKey: audioEntry.synthesisPublishableKey,
+      }
+    : null,
+  options: {
+    articleSelector,
+    trailLength,
+    highlighting: highlightEnabled,
+    clickToSeek,
+    autoScroll,
+    dock: dockEnabled,
+    exclusive,
+  },
+  strings: {
+    play: s.play,
+    pause: s.pause,
+    mute: s.mute,
+    unmute: s.unmute,
+    highlightOn: s.highlightOn,
+    highlightOff: s.highlightOff,
+  },
+};
+const configJson = JSON.stringify(config).replace(/</g, "\\u003c");
 ---
 
-<div 
+<div
   class:list={["vocasync-player", className]}
   id={playerId}
   data-slug={slug}
-  data-article-selector={articleSelector}
-  data-enable-mini={String(enableMiniPlayer)}
-  data-enable-highlighting={String(enableHighlighting)}
-  data-enable-click-to-seek={String(enableClickToSeek)}
-  data-trail-length={String(trailLength)}
-  aria-label={label}
+  data-variant={variant}
+  data-size={size}
+  role="group"
+  aria-label={s.label}
   tabindex="0"
 >
-  <!-- Hidden audio element -->
-  <audio id={audioId} preload="metadata"></audio>
+  <audio preload="metadata"></audio>
+  <script type="application/json" class="vocasync-data" set:html={configJson} />
 
-  {audioDataJson && (
-    <script type="application/json" class="vocasync-data" set:html={audioDataJson} />
-  )}
-  
-  <!-- Loading state -->
+  <slot name="before" />
+
   <div class="vocasync-player__loading" data-state="loading">
     <div class="vocasync-player__spinner"></div>
-    <span>Loading audio...</span>
+    <span>{s.loading}</span>
   </div>
-  
-  <!-- No audio placeholder -->
+
   <div class="vocasync-player__placeholder" data-state="no-audio" hidden>
-    {showPlaceholder && (
-      <span class="vocasync-player__placeholder-text">
-        Audio not available for this article
-      </span>
-    )}
+    <slot name="placeholder">
+      {showPlaceholder && (
+        <span class="vocasync-player__placeholder-text">{s.unavailable}</span>
+      )}
+    </slot>
   </div>
-  
-  <!-- Main player controls -->
+
+  <div class="vocasync-player__error" data-state="error" hidden>
+    <slot name="error">
+      <span class="vocasync-player__error-text">{s.error}</span>
+      <button type="button" class="vocasync-player__retry-btn" data-action="retry">
+        {s.retry}
+      </button>
+    </slot>
+  </div>
+
   <div class="vocasync-player__controls" data-state="ready" hidden>
-    <!-- Play/Pause button -->
-    <button 
-      type="button" 
-      class="vocasync-player__play-btn"
-      aria-label="Play"
-      data-action="play-pause"
-      title="Play/Pause (Space)"
-    >
-      <svg class="vocasync-icon vocasync-icon--play" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-        <path d="M6 4l15 8-15 8V4z"/>
-      </svg>
-      <svg class="vocasync-icon vocasync-icon--pause vocasync-hidden" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-        <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z"/>
-      </svg>
-    </button>
-    
-    <!-- Progress section -->
-    <div class="vocasync-player__progress-section">
-      <!-- Time display -->
-      <div class="vocasync-player__time">
-        <span data-time="current">0:00</span>
-        <span class="vocasync-player__time-sep">/</span>
-        <span data-time="duration">0:00</span>
-      </div>
-      
-      <!-- Progress bar -->
-      <input 
-        type="range" 
-        class="vocasync-player__progress"
-        min="0" 
-        max="100" 
-        value="0"
-        step="0.1"
-        aria-label="Seek"
-        data-action="seek"
-        title="Seek (Arrow keys)"
-      />
-    </div>
-    
-    <!-- Control buttons group -->
-    <div class="vocasync-player__button-group">
-      <!-- Highlighting toggle -->
-      <button 
-        type="button" 
-        class="vocasync-player__icon-btn"
-        aria-label="Toggle word highlighting"
-        data-action="toggle-highlighting"
-        data-highlighting="on"
-        title="Toggle highlighting (H)"
-      >
-        <svg class="vocasync-icon vocasync-icon--highlight-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M12 3v18"/>
-          <rect x="4" y="8" width="16" height="8" rx="1" fill="currentColor" opacity="0.3"/>
-          <path d="M8 12h8"/>
-        </svg>
-        <svg class="vocasync-icon vocasync-icon--highlight-off vocasync-hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M12 3v18" opacity="0.3"/>
-          <rect x="4" y="8" width="16" height="8" rx="1" opacity="0.3"/>
-          <path d="M4 4l16 16"/>
-        </svg>
-      </button>
+    {controls.map((control) => (
+      <Fragment>
+        {control === "play" && (
+          <button
+            type="button"
+            class="vocasync-player__play-btn"
+            aria-label={s.play}
+            data-action="play-pause"
+          >
+            <slot name="icon-play">
+              <svg class="vocasync-icon vocasync-icon--play" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M6 4l15 8-15 8V4z" />
+              </svg>
+            </slot>
+            <slot name="icon-pause">
+              <svg class="vocasync-icon vocasync-icon--pause vocasync-hidden" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" />
+              </svg>
+            </slot>
+          </button>
+        )}
 
-      <!-- Speed control -->
-      <div class="vocasync-player__speed">
-        <button 
-          type="button" 
-          class="vocasync-player__speed-btn"
-          aria-label="Playback speed"
-          data-action="speed"
-        >
-          <span data-speed-label>1x</span>
-        </button>
-        <div class="vocasync-player__speed-menu" hidden>
-          <button type="button" data-speed="0.5">0.5x</button>
-          <button type="button" data-speed="0.75">0.75x</button>
-          <button type="button" data-speed="1" data-active>1x</button>
-          <button type="button" data-speed="1.25">1.25x</button>
-          <button type="button" data-speed="1.5">1.5x</button>
-          <button type="button" data-speed="2">2x</button>
-        </div>
-      </div>
-      
-      <!-- Volume control -->
-      <div class="vocasync-player__volume">
-        <button 
-          type="button" 
-          class="vocasync-player__icon-btn"
-          aria-label="Toggle mute"
-          data-action="mute"
-          title="Toggle mute (M)"
-        >
-        <svg class="vocasync-icon vocasync-icon--volume-high" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill="currentColor"/>
-          <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
-          <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
-        </svg>
-        <svg class="vocasync-icon vocasync-icon--volume-mute vocasync-hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill="currentColor" opacity="0.5"/>
-          <line x1="23" y1="9" x2="17" y2="15"/>
-          <line x1="17" y1="9" x2="23" y2="15"/>
-        </svg>
-      </button>
-      <input 
-        type="range" 
-        class="vocasync-player__volume-slider"
-        min="0" 
-        max="100" 
-        value="100"
-        aria-label="Volume"
-        data-action="volume"
-      />
-      </div>
-    </div>
+        {control === "progress" && (
+          <div class="vocasync-player__progress-section">
+            <div class="vocasync-player__time">
+              <span data-time="current">0:00</span>
+              <span class="vocasync-player__time-sep">/</span>
+              <span data-time="duration">0:00</span>
+            </div>
+            <input
+              type="range"
+              class="vocasync-player__progress"
+              min="0"
+              max="100"
+              value="0"
+              step="0.1"
+              aria-label={s.seek}
+              data-action="seek"
+            />
+          </div>
+        )}
+
+        {control === "time" && (
+          <div class="vocasync-player__time">
+            <span data-time="current">0:00</span>
+            <span class="vocasync-player__time-sep">/</span>
+            <span data-time="duration">0:00</span>
+          </div>
+        )}
+
+        {control === "highlight" && (
+          <button
+            type="button"
+            class="vocasync-player__icon-btn"
+            aria-label={s.highlightOn}
+            data-action="toggle-highlighting"
+            data-highlighting="on"
+          >
+            <slot name="icon-highlight-on">
+              <svg class="vocasync-icon vocasync-icon--highlight-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M12 3v18" />
+                <rect x="4" y="8" width="16" height="8" rx="1" fill="currentColor" opacity="0.3" />
+                <path d="M8 12h8" />
+              </svg>
+            </slot>
+            <slot name="icon-highlight-off">
+              <svg class="vocasync-icon vocasync-icon--highlight-off vocasync-hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M12 3v18" opacity="0.3" />
+                <rect x="4" y="8" width="16" height="8" rx="1" opacity="0.3" />
+                <path d="M4 4l16 16" />
+              </svg>
+            </slot>
+          </button>
+        )}
+
+        {control === "speed" && (
+          <div class="vocasync-player__speed">
+            <button
+              type="button"
+              class="vocasync-player__speed-btn"
+              aria-label={s.speed}
+              aria-haspopup="menu"
+              aria-expanded="false"
+              data-action="speed"
+            >
+              <span data-speed-label>{s.speedValue(1)}</span>
+            </button>
+            <div class="vocasync-player__speed-menu" role="menu" hidden>
+              {speeds.map((rate) => (
+                <button
+                  type="button"
+                  role="menuitemradio"
+                  aria-checked={rate === 1 ? "true" : "false"}
+                  data-speed={String(rate)}
+                  {...(rate === 1 ? { "data-active": "" } : {})}
+                >
+                  {s.speedValue(rate)}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {control === "volume" && (
+          <div class="vocasync-player__volume">
+            <button type="button" class="vocasync-player__icon-btn" aria-label={s.mute} data-action="mute">
+              <slot name="icon-volume">
+                <svg class="vocasync-icon vocasync-icon--volume-high" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill="currentColor" />
+                  <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+                  <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+                </svg>
+              </slot>
+              <slot name="icon-muted">
+                <svg class="vocasync-icon vocasync-icon--volume-mute vocasync-hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill="currentColor" opacity="0.5" />
+                  <line x1="23" y1="9" x2="17" y2="15" />
+                  <line x1="17" y1="9" x2="23" y2="15" />
+                </svg>
+              </slot>
+            </button>
+            <input
+              type="range"
+              class="vocasync-player__volume-slider"
+              min="0"
+              max="100"
+              value="100"
+              aria-label={s.volume}
+              data-action="volume"
+            />
+          </div>
+        )}
+      </Fragment>
+    ))}
   </div>
 
-  <!-- Mini player (floating) -->
-  {enableMiniPlayer && (
-  <div class="vocasync-mini-player" id={`${playerId}-mini`} data-mini-player hidden>
-    <button 
-      type="button" 
-      class="vocasync-mini-player__play-btn"
-      aria-label="Play"
-      data-action="play-pause"
-    >
-      <svg class="vocasync-icon vocasync-icon--play" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-        <path d="M6 4l15 8-15 8V4z"/>
-      </svg>
-      <svg class="vocasync-icon vocasync-icon--pause vocasync-hidden" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-        <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z"/>
-      </svg>
-    </button>
-    <div class="vocasync-mini-player__progress">
-      <div class="vocasync-mini-player__progress-bar" data-progress></div>
+  <slot name="after" />
+
+  {dockEnabled && (
+    <div class="vocasync-mini-player" data-mini-player role="group" aria-label={s.label} hidden>
+      <button type="button" class="vocasync-mini-player__play-btn" aria-label={s.play} data-action="play-pause">
+        <svg class="vocasync-icon vocasync-icon--play" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path d="M6 4l15 8-15 8V4z" />
+        </svg>
+        <svg class="vocasync-icon vocasync-icon--pause vocasync-hidden" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" />
+        </svg>
+      </button>
+      <div class="vocasync-mini-player__progress">
+        <div class="vocasync-mini-player__progress-bar" data-progress></div>
+      </div>
+      <span class="vocasync-mini-player__time" data-time="current">0:00</span>
+      <button type="button" class="vocasync-mini-player__close-btn" aria-label={s.retry} data-action="close-mini">
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
+        </svg>
+      </button>
     </div>
-    <span class="vocasync-mini-player__time" data-time="current">0:00</span>
-    <button 
-      type="button" 
-      class="vocasync-mini-player__close-btn"
-      aria-label="Close mini player"
-      data-action="close-mini"
-    >
-      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-        <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
-      </svg>
-    </button>
-  </div>
   )}
 </div>
 
 <script>
-  // A hoisted module script: bundled once per page by Vite, type-checked, and shared
-  // by every player on the page. The previous `define:vars` form inlined ~530 lines
-  // per player instance and could not be checked at all.
+  // A hoisted module script: bundled once per page by Vite, typechecked, and shared by
+  // every player on the page. `define:vars` inlined ~530 lines per instance and could
+  // not be checked at all.
   import { install } from "../player-core/index.js";
 
   install();

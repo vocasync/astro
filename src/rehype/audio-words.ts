@@ -14,10 +14,16 @@ export interface RehypeAudioWordsOptions {
    */
   audioMapPath?: string;
   /**
-   * CSS class for generated word spans.
-   * @default "vocasync"  (spans get the class `${classPrefix}-word`)
+   * An extra class added to every word span, alongside `vocasync-word`.
+   *
+   * Additive on purpose. The previous `classPrefix` option renamed the span class but
+   * nothing else: `.vocasync-word` stayed hardcoded in the stylesheet, the player and
+   * the WordPress fork, and `.vocasync-click-seek` and `.vocasync-math` were never
+   * covered at all -- so setting it silently broke highlighting. If you need to
+   * restyle the spans, target this class or override the tokens; if you need entirely
+   * different markup, drive the engine yourself via `@vocasync/astro/player-core`.
    */
-  classPrefix?: string;
+  extraWordClass?: string;
   /**
    * Content collection folder name used to extract slugs.
    * @default "articles"
@@ -63,10 +69,10 @@ const SKIP_CLASSES = new Set(["katex", "katex-mathml", "katex-html"]);
 const rehypeAudioWords: Plugin<[RehypeAudioWordsOptions?], Root> = (options = {}) => {
   const {
     audioMapPath = ".vocasync/audio-map.json",
-    classPrefix = "vocasync",
+    extraWordClass,
     collectionName = "articles",
   } = options;
-  const wordClass = `${classPrefix}-word`;
+  const wordClasses = extraWordClass ? ["vocasync-word", extraWordClass] : ["vocasync-word"];
 
   return (tree, file) => {
     const audioMap = loadAudioMapSync(audioMapPath);
@@ -100,7 +106,7 @@ const rehypeAudioWords: Plugin<[RehypeAudioWordsOptions?], Root> = (options = {}
           replacements.push({
             parent,
             index,
-            nodes: [wrapSpan([node as Element], nextIndex, count, wordClass)],
+            nodes: [wrapSpan([node as Element], nextIndex, count, wordClasses)],
           });
           nextIndex += count;
           return;
@@ -124,7 +130,7 @@ const rehypeAudioWords: Plugin<[RehypeAudioWordsOptions?], Root> = (options = {}
           if (start > cursor) out.push({ type: "text", value: text.slice(cursor, start) });
           const count = spokenTokenCount(m[0]);
           if (count > 0) {
-            out.push(wrapText(m[0], nextIndex, count, wordClass));
+            out.push(wrapText(m[0], nextIndex, count, wordClasses));
             nextIndex += count;
           } else {
             out.push({ type: "text", value: m[0] });
@@ -145,12 +151,12 @@ const rehypeAudioWords: Plugin<[RehypeAudioWordsOptions?], Root> = (options = {}
   };
 };
 
-function wrapText(word: string, dataI: number, dataN: number, wordClass: string): Element {
+function wrapText(word: string, dataI: number, dataN: number, wordClasses: string[]): Element {
   return {
     type: "element",
     tagName: "span",
     properties: {
-      className: [wordClass],
+      className: [...wordClasses],
       "data-i": String(dataI),
       "data-n": String(dataN),
     },
@@ -162,13 +168,13 @@ function wrapSpan(
   children: (Text | Element)[],
   dataI: number,
   dataN: number,
-  wordClass: string
+  wordClasses: string[]
 ): Element {
   return {
     type: "element",
     tagName: "span",
     properties: {
-      className: [wordClass],
+      className: [...wordClasses],
       "data-i": String(dataI),
       "data-n": String(dataN),
     },

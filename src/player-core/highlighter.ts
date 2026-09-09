@@ -32,6 +32,8 @@ export interface HighlighterOptions {
   autoScroll?: boolean;
   /** Injected so the engine stays testable and window-free. */
   prefersReducedMotion?: () => boolean;
+  /** Called when the active word changes, including to none during silence. */
+  onWordChange?: (el: HTMLElement | null) => void;
 }
 
 export interface Highlighter {
@@ -79,6 +81,7 @@ export function createHighlighter(options: HighlighterOptions): Highlighter {
     if (activeEl) activeEl.classList.remove(activeClass);
     if (el) el.classList.add(activeClass);
     activeEl = el;
+    options.onWordChange?.(el);
   }
 
   function clearTrail() {

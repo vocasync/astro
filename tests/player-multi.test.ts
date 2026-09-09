@@ -168,16 +168,53 @@ describe("failure handling", () => {
     h = boot(SINGLE);
   });
 
-  test("a failed load surfaces the placeholder instead of dead controls", () => {
+  test("a failed load surfaces a distinct error state, not dead controls", () => {
     // An expired publishable key answers 401. The shipped player never listened for
     // `error`, so it sat in the ready state with a play button that did nothing.
+    // "this article has no audio" and "the audio failed to load" are different
+    // situations and now say different things.
     const player = h.players[0];
-    expect((player.querySelector('[data-state="ready"]') as HTMLElement).hidden).toBe(false);
+    const panel = (state: string) => player.querySelector(`[data-state="${state}"]`) as HTMLElement;
+    expect(panel("ready").hidden).toBe(false);
 
     h.fire(h.audios[0], "error");
 
-    expect((player.querySelector('[data-state="ready"]') as HTMLElement).hidden).toBe(true);
-    expect((player.querySelector('[data-state="no-audio"]') as HTMLElement).hidden).toBe(false);
+    expect(panel("ready").hidden).toBe(true);
+    expect(panel("error").hidden).toBe(false);
+    expect(panel("no-audio").hidden).toBe(true);
+    expect(player.getAttribute("data-player-state")).toBe("error");
+  });
+
+  test("the error state offers a retry that re-attempts the load", () => {
+    const player = h.players[0];
+    h.fire(h.audios[0], "error");
+    expect(player.getAttribute("data-player-state")).toBe("error");
+
+    const retry = player.querySelector('[data-action="retry"]') as HTMLElement;
+    expect(retry).toBeTruthy();
+    h.click(retry);
+    // The element caches its failure, so retry re-assigns the source and reloads.
+    // happy-dom resolves that synchronously, so the state lands past "loading"; what
+    // matters is that it left the error state and the source was re-attached.
+    expect(player.getAttribute("data-player-state")).not.toBe("error");
+    expect(h.audios[0].getAttribute("src")).toContain("pk=");
+  });
+
+  test("emits events a host can hook without owning the markup", () => {
+    // Nothing was dispatched before, so analytics or a custom transcript UI had no
+    // way in short of forking the component.
+    const player = h.players[0];
+    const seen: string[] = [];
+    for (const name of ["play", "pause", "error"]) {
+      player.addEventListener(`vocasync:${name}`, () => seen.push(name));
+    }
+    const btn = player.querySelector(
+      '[data-state="ready"] [data-action="play-pause"]'
+    ) as HTMLElement;
+    h.click(btn);
+    h.click(btn);
+    h.fire(h.audios[0], "error");
+    expect(seen).toEqual(["play", "pause", "error"]);
   });
 
   test("the mute icon follows silence, not just the muted flag", () => {
