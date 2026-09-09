@@ -42,7 +42,6 @@
 
   /* Color for the currently spoken word */
   --vocasync-highlight: #10b981;
-  --vocasync-highlight-text: #ffffff;
 
   /* Opacity for active word background */
   --vocasync-highlight-active-opacity: 0.25;
@@ -86,7 +85,6 @@
 
   --vocasync-transition-fast: 150ms ease;
   --vocasync-transition: 200ms ease;
-  --vocasync-transition-slow: 300ms ease;
 }
 
 /* ========================================
@@ -110,7 +108,6 @@
     --vocasync-text-faint: #64748b;
 
     --vocasync-highlight: #34d399;
-    --vocasync-highlight-text: #1e293b;
 
     --vocasync-shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.2);
     --vocasync-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.3), 0 1px 2px -1px rgb(0 0 0 / 0.3);
@@ -146,20 +143,4 @@
     var(--vocasync-highlight) calc(var(--vocasync-highlight-trail-opacity) * 100%),
     transparent
   );
-}
-
-/* ========================================
- * MATH SPEECH (hidden visually, accessible to highlighter)
- * ======================================== */
-
-.vocasync-math-speech {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
 }
