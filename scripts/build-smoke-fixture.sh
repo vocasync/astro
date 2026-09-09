@@ -68,19 +68,74 @@ const { Content } = await render(post);
 </body></html>
 ASTRO
 
+# Two players, each owning its own article root. This is the shape that was broken:
+# clicking a word used to seek every player on the page and start several tracks.
+cat > "$P/src/pages/multi.astro" <<'ASTRO'
+---
+import AudioPlayer from "@vocasync/astro/components/AudioPlayer.astro";
+import audioMap from "../data/audio-map.json";
+import { getEntry, render } from "astro:content";
+const post = await getEntry("blog", "post");
+const { Content } = await render(post);
+---
+<html><head><title>smoke multi</title></head><body>
+<section>
+  <AudioPlayer slug="post" audioEntry={audioMap.entries.post} articleSelector="#body-a" />
+  <div id="body-a" data-article-body><Content /></div>
+</section>
+<section>
+  <AudioPlayer slug="post" audioEntry={audioMap.entries.post} articleSelector="#body-b" />
+  <div id="body-b" data-article-body><Content /></div>
+</section>
+</body></html>
+ASTRO
+
 (cd "$P" && bun install >/dev/null 2>&1 && bunx astro build >/dev/null 2>&1)
+
+inline_page() {
+  local built="$1" dest="$2"
+  [ -f "$built" ] || { echo "smoke fixture build produced no $built" >&2; exit 1; }
+  local rel bundle
+  rel="$(grep -o '/_astro/[A-Za-z0-9._-]*\.js' "$built" | head -1)"
+  [ -n "$rel" ] || { echo "no player bundle referenced by $built" >&2; exit 1; }
+  bundle="$P/dist$rel"
+  [ -f "$bundle" ] || { echo "player bundle missing: $bundle" >&2; exit 1; }
+  BUNDLE_PATH="$bundle" node -e '
+    const fs = require("fs");
+    const html = fs.readFileSync(process.argv[1], "utf8");
+    const js = fs.readFileSync(process.env.BUNDLE_PATH, "utf8");
+    const out = html.replace(
+      /<script type="module" src="\/_astro\/[^"]+"><\/script>/,
+      `<script type="module" data-vocasync-bundle>${js}</script>`
+    );
+    if (out === html) { console.error("could not inline the player bundle"); process.exit(1); }
+    fs.writeFileSync(process.argv[2], out);
+  ' "$built" "$dest"
+}
 
 GENERATED="$P/dist/index.html"
 [ -f "$GENERATED" ] || { echo "smoke fixture build produced no output" >&2; exit 1; }
 
-if [ "$CHECK" = "--check" ]; then
-  if ! diff -q "$OUT" "$GENERATED" >/dev/null 2>&1; then
-    echo "tests/fixtures/smoke/player.html is stale. Run: bun run fixtures:smoke" >&2
-    diff -u "$OUT" "$GENERATED" | head -40 >&2 || true
-    exit 1
+# Astro hoists the player's module script into its own bundle, which happy-dom cannot
+# fetch. Inline it so each fixture is a single self-contained file the tests can drive.
+inline_page "$P/dist/index.html"       "$P/single.html"
+inline_page "$P/dist/multi/index.html" "$P/multi.html"
+
+DEST_DIR="$(dirname "$OUT")"
+stale=0
+for pair in "single.html:player.html" "multi.html:multi-player.html"; do
+  built="$P/${pair%%:*}"
+  dest="$DEST_DIR/${pair##*:}"
+  if [ "$CHECK" = "--check" ]; then
+    if ! diff -q "$dest" "$built" >/dev/null 2>&1; then
+      echo "$dest is stale. Run: bun run fixtures:smoke" >&2
+      stale=1
+    fi
+  else
+    cp "$built" "$dest"
+    echo "wrote $dest ($(wc -c < "$dest") bytes)"
   fi
-  echo "smoke fixture is current"
-else
-  cp "$GENERATED" "$OUT"
-  echo "wrote $OUT ($(wc -c < "$OUT") bytes)"
-fi
+done
+[ "$stale" -eq 0 ] || exit 1
+[ "$CHECK" = "--check" ] && echo "smoke fixtures are current"
+exit 0

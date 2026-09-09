@@ -49,12 +49,17 @@ function boot(): Harness {
     .replace(/^[\s\S]*?<html[^>]*>/i, "")
     .replace(/<\/html>[\s\S]*$/i, "");
 
-  // happy-dom does not run <script> from innerHTML; evaluate the player's inline
-  // script explicitly, exactly as the browser would.
-  for (const s of Array.from(document.querySelectorAll("script"))) {
-    const src = s.textContent ?? "";
-    if (src.includes("getElementById")) window.eval(src);
+  // happy-dom does not run <script> from innerHTML. The fixture generator inlines
+  // Astro's hoisted player bundle and marks it, so evaluate exactly that, as the
+  // browser would. Failing loudly here matters: a silently un-booted player would
+  // make every assertion below meaningless.
+  const bundle = document.querySelector("script[data-vocasync-bundle]");
+  if (!bundle?.textContent) {
+    throw new Error(
+      "smoke fixture has no player bundle -- regenerate it with `bun run fixtures:smoke`"
+    );
   }
+  window.eval(bundle.textContent);
 
   const player = document.querySelector(".vocasync-player") as HTMLElement;
   const audio = document.querySelector("audio") as HTMLAudioElement;
