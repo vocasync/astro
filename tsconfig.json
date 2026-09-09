@@ -21,10 +21,6 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "verbatimModuleSyntax": true,
-    "baseUrl": ".",
-    "paths": {
-      "@/*": ["./src/*"]
-    },
     "types": ["node"]
   },
   "include": ["src/**/*.ts", "src/**/*.d.ts"],

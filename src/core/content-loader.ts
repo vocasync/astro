@@ -1,4 +1,4 @@
-import { readFile, readdir, stat } from "node:fs/promises";
+import { readdir, readFile, stat } from "node:fs/promises";
 import { basename, extname, join, relative } from "node:path";
 import type { CollectionConfig } from "../config/index.js";
 import type { ContentItem } from "../types/index.js";

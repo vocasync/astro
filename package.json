@@ -24,14 +24,22 @@
   "bin": {
     "vocasync": "./dist/cli.js"
   },
-  "files": ["dist", "src"],
+  "files": [
+    "dist",
+    "src"
+  ],
   "scripts": {
     "build": "tsc && cp -r src/components/*.astro dist/components/ && cp -r src/styles dist/",
     "dev": "tsc --watch",
     "test": "bun test",
     "check": "biome check .",
     "check:fix": "biome check --write .",
-    "prepublishOnly": "bun run build"
+    "check:types": "tsc --noEmit",
+    "check:astro": "./scripts/astro-check.sh",
+    "check:compat": "./scripts/astro-compat-matrix.sh",
+    "prepublishOnly": "bun run build",
+    "fixtures:smoke": "./scripts/build-smoke-fixture.sh",
+    "fixtures:check": "./scripts/build-smoke-fixture.sh --check"
   },
   "keywords": [
     "astro",
@@ -55,11 +63,15 @@
     "url": "https://github.com/vocasync/astro/issues"
   },
   "peerDependencies": {
-    "astro": "^4.0.0 || ^5.0.0",
+    "astro": "^4.0.0 || ^5.0.0 || ^6.0.0 || ^7.0.0",
+    "@astrojs/markdown-remark": "^7.0.0",
     "speech-rule-engine": "^4.0.0",
     "mathjax-full": "^3.2.0"
   },
   "peerDependenciesMeta": {
+    "@astrojs/markdown-remark": {
+      "optional": true
+    },
     "speech-rule-engine": {
       "optional": true
     },
@@ -68,23 +80,25 @@
     }
   },
   "dependencies": {
-    "zod": "^3.25.76",
-    "unified": "^11.0.5",
-    "remark-parse": "^11.0.0",
     "remark-math": "^6.0.0",
-    "unist-util-visit-parents": "^6.0.2"
+    "remark-parse": "^11.0.0",
+    "unified": "^11.0.5",
+    "unist-util-visit-parents": "^6.0.2",
+    "zod": "^4.5.4"
   },
   "devDependencies": {
-    "@biomejs/biome": "^1.9.4",
-    "@types/hast": "^3.0.4",
+    "@astrojs/check": "^0.9.10",
+    "@biomejs/biome": "^2.5.12",
+    "@types/hast": "^3.0.5",
     "@types/mdast": "^4.0.4",
-    "@types/node": "^22.19.19",
-    "astro": "^5.18.1",
+    "@types/node": "^22.20.1",
+    "astro": "^5.18.2",
+    "happy-dom": "^20.14.0",
     "mathjax-full": "^3.2.2",
     "speech-rule-engine": "^4.1.4",
-    "typescript": "^5.9.3"
+    "typescript": "^7.0.2"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=20.0.0"
   }
 }

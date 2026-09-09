@@ -1,14 +1,14 @@
 ---
 /**
  * VocaSync AudioPlayer Component
- * 
+ *
  * A full-featured audio player with word-level highlighting support.
  * Uses native HTML5 audio and range inputs - no external dependencies.
- * 
+ *
  * @example
  * ```astro
- * <AudioPlayer 
- *   slug={post.slug} 
+ * <AudioPlayer
+ *   slug={post.slug}
  *   label="Listen to this article"
  *   enableMiniPlayer={true}
  * />
@@ -66,12 +66,14 @@ const playerId = `vocasync-player-${slug.replace(/[^a-z0-9]/gi, "-")}`;
 const audioId = `${playerId}-audio`;
 
 // Serialize audio data for client-side use
-const audioDataJson = audioEntry ? JSON.stringify({
-  audioUrl: audioEntry.audioUrl,
-  words: audioEntry.words || [],
-  duration: audioEntry.duration,
-  publishableKey: audioEntry.synthesisPublishableKey,
-}) : null;
+const audioDataJson = audioEntry
+  ? JSON.stringify({
+      audioUrl: audioEntry.audioUrl,
+      words: audioEntry.words || [],
+      duration: audioEntry.duration,
+      publishableKey: audioEntry.synthesisPublishableKey,
+    })
+  : null;
 ---
 
 <div 

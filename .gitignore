@@ -28,3 +28,6 @@ pnpm-lock.yaml
 
 # Test artifacts
 *.tgz
+
+# Astro generated types (from `astro sync` / `astro check`)
+.astro/

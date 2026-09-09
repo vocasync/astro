@@ -1,12 +1,12 @@
-export { loadContent, loadContentBySlug } from "./content-loader.js";
-export { buildSpeechDocument } from "./speech-builder.js";
-export { computeHash, hasChanged } from "./hash-manager.js";
 export {
-  loadAudioMap,
-  saveAudioMap,
-  getAudioEntry,
-  setAudioEntry,
-  removeAudioEntry,
-  getAudioSlugs,
   createEmptyAudioMap,
+  getAudioEntry,
+  getAudioSlugs,
+  loadAudioMap,
+  removeAudioEntry,
+  saveAudioMap,
+  setAudioEntry,
 } from "./audio-map.js";
+export { loadContent, loadContentBySlug } from "./content-loader.js";
+export { computeHash, hasChanged } from "./hash-manager.js";
+export { buildSpeechDocument } from "./speech-builder.js";

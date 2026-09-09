@@ -1,4 +1,4 @@
-import { type VocaSyncClient, toAlignmentLocale, withPublishableKey } from "../api/client.js";
+import { toAlignmentLocale, type VocaSyncClient, withPublishableKey } from "../api/client.js";
 import { FormatSchema, LanguageSchema, type VocaSyncConfig, VoiceSchema } from "../config/index.js";
 import { getAudioEntry, loadAudioMap, saveAudioMap, setAudioEntry } from "../core/audio-map.js";
 import { loadContent } from "../core/content-loader.js";

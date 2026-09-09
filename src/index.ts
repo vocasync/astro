@@ -23,45 +23,40 @@
  * ```
  */
 
-// Astro Integration
-export { default } from "./integration.js";
-export { default as vocasync } from "./integration.js";
-
-// Configuration
-export {
-  validateConfig,
-  defaultConfig,
-  VocaSyncConfigSchema,
-  VoiceSchema,
-  QualitySchema,
-  FormatSchema,
-  LanguageSchema,
-} from "./config/index.js";
-
 export type {
-  VocaSyncConfig,
-  VocaSyncUserConfig,
-  Voice,
-  Quality,
   Format,
   Language,
   MathStyle,
+  Quality,
+  VocaSyncConfig,
+  VocaSyncUserConfig,
+  Voice,
 } from "./config/index.js";
-
+// Configuration
+export {
+  defaultConfig,
+  FormatSchema,
+  LanguageSchema,
+  QualitySchema,
+  VocaSyncConfigSchema,
+  VoiceSchema,
+  validateConfig,
+} from "./config/index.js";
+export { getAudioEntry, loadAudioMap, saveAudioMap } from "./core/audio-map.js";
+// Core utilities (for advanced usage)
+export { loadContent } from "./core/content-loader.js";
+export { computeHash } from "./core/hash-manager.js";
+export { buildSpeechDocument } from "./core/speech-builder.js";
+// Astro Integration
+export { default, default as vocasync } from "./integration.js";
 // Types
 export type {
-  ContentItem,
-  SpeechDocument,
   AlignedWord,
   AudioArtifact,
   AudioMap,
+  ContentItem,
+  SpeechDocument,
   SyncResult,
-  SyncSummary,
   SyncStatus,
+  SyncSummary,
 } from "./types/index.js";
-
-// Core utilities (for advanced usage)
-export { loadContent } from "./core/content-loader.js";
-export { buildSpeechDocument } from "./core/speech-builder.js";
-export { computeHash } from "./core/hash-manager.js";
-export { loadAudioMap, saveAudioMap, getAudioEntry } from "./core/audio-map.js";

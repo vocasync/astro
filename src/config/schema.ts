@@ -124,15 +124,15 @@ export const VocaSyncConfigSchema = z.object({
   /** Language for synthesis (e.g., "en", "fr", "de") */
   language: LanguageSchema.default("en"),
   /** Synthesis options */
-  synthesis: SynthesisConfigSchema.default({}),
+  synthesis: SynthesisConfigSchema.prefault({}),
   /** Math/LaTeX support */
-  math: MathConfigSchema.default({}),
+  math: MathConfigSchema.prefault({}),
   /** Output paths */
-  output: OutputConfigSchema.default({}),
+  output: OutputConfigSchema.prefault({}),
   /** Frontmatter field to check for audio opt-in/out (true/false) */
   frontmatterField: z.string().optional(),
   /** Processing options */
-  processing: ProcessingConfigSchema.default({}),
+  processing: ProcessingConfigSchema.prefault({}),
 });
 
 export type VocaSyncConfig = z.infer<typeof VocaSyncConfigSchema>;

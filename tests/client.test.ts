@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { VocaSyncClient, toAlignmentLocale, withPublishableKey } from "../src/api/client.js";
+import { toAlignmentLocale, VocaSyncClient, withPublishableKey } from "../src/api/client.js";
 
 const realFetch = globalThis.fetch;
 afterEach(() => {

@@ -75,7 +75,9 @@ export default function rehypeMathSpeech(options: RehypeMathSpeechOptions = {}) 
 }
 
 function classNames(el: Element): string[] {
-  const cls = el.properties?.className;
+  // @types/hast declares className as string[], but plugins earlier in the chain
+  // can leave a raw string, so both shapes are handled at runtime.
+  const cls: unknown = el.properties?.className;
   if (Array.isArray(cls)) return cls.filter((c): c is string => typeof c === "string");
   if (typeof cls === "string") return cls.split(/\s+/);
   return [];

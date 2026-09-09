@@ -1,5 +1,5 @@
 import type { AstroIntegration } from "astro";
-import { type VocaSyncConfig, loadVocaSyncConfig, validateConfig } from "./config/index.js";
+import { loadVocaSyncConfig, type VocaSyncConfig, validateConfig } from "./config/index.js";
 import { createEmptyAudioMap, loadAudioMap } from "./core/audio-map.js";
 import type { AudioMap } from "./types/index.js";
 

@@ -1,32 +1,31 @@
-export {
-  VocaSyncConfigSchema,
-  CollectionConfigSchema,
-  SynthesisConfigSchema,
-  MathConfigSchema,
-  OutputConfigSchema,
-  ProcessingConfigSchema,
-  VoiceSchema,
-  QualitySchema,
-  FormatSchema,
-  LanguageSchema,
-  MathStyleSchema,
-  validateConfig,
-  defaultConfig,
-} from "./schema.js";
+export { loadVocaSyncConfig } from "./loader.js";
 
 export type {
-  VocaSyncConfig,
-  VocaSyncUserConfig,
   CollectionConfig,
-  SynthesisConfig,
-  MathConfig,
-  OutputConfig,
-  ProcessingConfig,
-  Voice,
-  Quality,
   Format,
   Language,
+  MathConfig,
   MathStyle,
+  OutputConfig,
+  ProcessingConfig,
+  Quality,
+  SynthesisConfig,
+  VocaSyncConfig,
+  VocaSyncUserConfig,
+  Voice,
 } from "./schema.js";
-
-export { loadVocaSyncConfig } from "./loader.js";
+export {
+  CollectionConfigSchema,
+  defaultConfig,
+  FormatSchema,
+  LanguageSchema,
+  MathConfigSchema,
+  MathStyleSchema,
+  OutputConfigSchema,
+  ProcessingConfigSchema,
+  QualitySchema,
+  SynthesisConfigSchema,
+  VocaSyncConfigSchema,
+  VoiceSchema,
+  validateConfig,
+} from "./schema.js";
