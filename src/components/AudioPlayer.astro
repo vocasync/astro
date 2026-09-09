@@ -15,7 +15,7 @@
  * />
  * ```
  */
-import { defaultStrings } from "../player-core/strings.js";
+import { defaultStrings, formatString } from "../player-core/strings.js";
 import type { AudioPlayerProps } from "./types.js";
 import { DEFAULT_CONTROLS } from "./types.js";
 
@@ -88,6 +88,8 @@ const config = {
     // Only the strings the runtime needs. skipBack/skipForward are functions, so they
     // are not serialisable -- and they are only used server-side, on the markup below.
     label: s.label,
+    speedValue: s.speedValue,
+    seekPosition: s.seekPosition,
   },
 };
 const configJson = JSON.stringify(config).replace(/</g, "\\u003c");
@@ -185,7 +187,7 @@ const configJson = JSON.stringify(config).replace(/</g, "\\u003c");
           <button
             type="button"
             class="vocasync-player__icon-btn"
-            aria-label={s.skipBack(skipSeconds)}
+            aria-label={formatString(s.skipBack, { seconds: skipSeconds })}
             data-action="skip-back"
           >
             <slot name="icon-skip-back">
@@ -201,7 +203,7 @@ const configJson = JSON.stringify(config).replace(/</g, "\\u003c");
           <button
             type="button"
             class="vocasync-player__icon-btn"
-            aria-label={s.skipForward(skipSeconds)}
+            aria-label={formatString(s.skipForward, { seconds: skipSeconds })}
             data-action="skip-forward"
           >
             <slot name="icon-skip-forward">
@@ -248,7 +250,7 @@ const configJson = JSON.stringify(config).replace(/</g, "\\u003c");
               aria-expanded="false"
               data-action="speed"
             >
-              <span data-speed-label>{s.speedValue(1)}</span>
+              <span data-speed-label>{formatString(s.speedValue, { rate: 1 })}</span>
             </button>
             <div class="vocasync-player__speed-menu" role="menu" hidden>
               {speeds.map((rate) => (
@@ -259,7 +261,7 @@ const configJson = JSON.stringify(config).replace(/</g, "\\u003c");
                   data-speed={String(rate)}
                   {...(rate === 1 ? { "data-active": "" } : {})}
                 >
-                  {s.speedValue(rate)}
+                  {formatString(s.speedValue, { rate })}
                 </button>
               ))}
             </div>

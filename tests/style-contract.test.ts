@@ -117,6 +117,90 @@ describe("documentation contract", () => {
   });
 });
 
+describe("strings documentation contract", () => {
+  const readme = readFileSync(join(ROOT, "README.md"), "utf8");
+  const strings = readFileSync(join(ROOT, "src/player-core/strings.ts"), "utf8");
+
+  test("every translatable key is documented", () => {
+    // An undocumented key is one nobody knows they can translate, and every one of
+    // these is either visible text or an accessible label.
+    const iface = strings.slice(
+      strings.indexOf("export interface PlayerStrings"),
+      strings.indexOf("export const defaultStrings")
+    );
+    const keys = [...iface.matchAll(/^\s{2}(\w+)[?:]/gm)].map((m) => m[1]);
+    expect(keys.length).toBeGreaterThan(15);
+    const section = readme.slice(readme.indexOf("### Text and translation"));
+    const undocumented = keys.filter((k) => !section.slice(0, 3000).includes(`\`${k}\``));
+    expect(undocumented).toEqual([]);
+  });
+});
+
+describe("README examples contract", () => {
+  const readme = readFileSync(join(ROOT, "README.md"), "utf8");
+  /** Everything before the migration guide, which legitimately names removed API. */
+  const body = readme.slice(0, readme.indexOf("## Migrating from v1"));
+
+  test("no example uses a prop that was removed in v2", () => {
+    // The Quick Start still passed `label="…"` after the prop became
+    // `strings={{ label }}` -- a broken snippet in the first code anyone copies.
+    const removed = [
+      "label=",
+      "enableMiniPlayer",
+      "enableHighlighting",
+      "enableClickToSeek",
+      "trailLength=",
+      "classPrefix",
+      "variables.css",
+    ];
+    const used = removed.filter((r) => body.includes(r));
+    expect(used).toEqual([]);
+  });
+
+  test("every AudioPlayer prop used in an example is a real prop", () => {
+    const types = readFileSync(join(ROOT, "src/components/types.ts"), "utf8");
+    const declared = new Set([...types.matchAll(/^\s{2}(\w+)\??:/gm)].map((m) => m[1]));
+    const used = new Set<string>();
+    for (const block of body.matchAll(/<AudioPlayer\b([\s\S]*?)\/?>/g)) {
+      for (const attr of block[1].matchAll(/(?:^|\s)([a-zA-Z]+)=/g)) used.add(attr[1]);
+    }
+    expect(used.size).toBeGreaterThan(3);
+    const unknown = [...used].filter((u) => !declared.has(u) && u !== "slot");
+    expect(unknown).toEqual([]);
+  });
+});
+
+describe("README navigation contract", () => {
+  const readme = readFileSync(join(ROOT, "README.md"), "utf8");
+  const slugify = (h: string) =>
+    h
+      .toLowerCase()
+      .replace(/[^a-z0-9 -]/g, "")
+      .trim()
+      .replace(/\s+/g, "-");
+  const headings = new Set([...readme.matchAll(/^#{2,4} (.+)$/gm)].map((m) => slugify(m[1])));
+
+  test("every internal link points at a heading that exists", () => {
+    // A broken anchor scrolls nowhere and reports nothing.
+    const links = [...readme.matchAll(/\]\(#([a-z0-9-]+)\)/g)].map((m) => m[1]);
+    expect(links.length).toBeGreaterThan(10);
+    expect([...new Set(links)].filter((l) => !headings.has(l))).toEqual([]);
+  });
+
+  test("the table of contents covers every top-level section", () => {
+    const toc = readme.slice(
+      readme.indexOf("## Table of Contents"),
+      readme.indexOf("## Installation")
+    );
+    const listed = new Set([...toc.matchAll(/\]\(#([a-z0-9-]+)\)/g)].map((m) => m[1]));
+    const sections = [...readme.matchAll(/^## (.+)$/gm)]
+      .map((m) => m[1])
+      .filter((h) => !["Features", "Demo", "Table of Contents", "License"].includes(h));
+    const missing = sections.map(slugify).filter((s2) => !listed.has(s2));
+    expect(missing).toEqual([]);
+  });
+});
+
 describe("cascade contract", () => {
   test("no rule uses !important", () => {
     for (const [file, css] of cssByFile) {

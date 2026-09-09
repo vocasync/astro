@@ -26,6 +26,7 @@ Turn your Astro blog posts into narrated audio with word-level synchronization.
 - [Quick Start](#quick-start)
 - [Project Structure](#project-structure)
 - [Configuration](#configuration)
+  - [Integration options](#integration-options)
 - [CLI Commands](#cli-commands)
 - [Components](#components)
 - [Headless usage](#headless-usage)
@@ -35,6 +36,7 @@ Turn your Astro blog posts into narrated audio with word-level synchronization.
 - [Important: Audio Map](#important-audio-map)
 - [Theming](#theming)
 - [Migrating from v1](#migrating-from-v1)
+- [Troubleshooting](#troubleshooting)
 
 ## Installation
 
@@ -140,15 +142,30 @@ const audioEntry = audioMap.entries[post.slug];
 ---
 
 <article>
-  <!-- Audio player at the top -->
-  <AudioPlayer slug={post.slug} audioEntry={audioEntry} label="Listen to this post" />
-  
-  <!-- Article content - must have data-article-body for word highlighting -->
+  <AudioPlayer slug={post.slug} audioEntry={audioEntry} />
+
+  <!-- Word highlighting needs a root to find the spans in -->
   <div data-article-body>
     <slot />
   </div>
 </article>
 ```
+
+### 7. Make it look like your site
+
+The player is styled by four CSS custom properties. Point them at tokens you already
+have and it adopts your palette and your dark mode:
+
+```css
+:root {
+  --vocasync-accent: var(--color-primary);
+  --vocasync-surface: var(--color-card);
+  --vocasync-text: var(--color-text);
+}
+```
+
+There is a lot more available — variants, control ordering, slots, translation — see
+[Theming](#theming) and [Components](#components). Nothing needs `!important`.
 
 ## Project Structure
 
@@ -172,6 +189,33 @@ my-astro-site/
 ```
 
 ## Configuration
+
+### Integration options
+
+`vocasync()` takes an options object in `astro.config.mjs`. Everything about *content*
+lives in `vocasync.config.mjs` below; these are about the integration itself.
+
+```javascript
+integrations: [
+  vocasync({
+    // Inject the player stylesheet on every page. Set false to import it yourself:
+    // `@vocasync/astro/styles/vocasync.css`, or just `content.css` when you drive the
+    // engine headlessly and ship your own chrome.
+    styles: true,
+
+    theme: {
+      // A selector your site already uses for dark mode. Usually unnecessary --
+      // `.dark`, `[data-theme="dark"]` and `[data-mode="dark"]` are recognised out of
+      // the box, covering Tailwind, next-themes, daisyUI and Starlight.
+      darkSelector: '[data-appearance="night"]',
+    },
+  }),
+]
+```
+
+The integration does **not** register the rehype plugins. Add `rehypeAudioWords` (and
+`rehypeMathSpeech` if you use maths) to `markdown.rehypePlugins` yourself — their order
+relative to your maths renderer matters, so it is left explicit.
 
 ### vocasync.config.mjs
 
@@ -402,9 +446,28 @@ Every visible string and every `aria-label` comes from `strings`:
 />
 ```
 
-Keys: `label`, `loading`, `unavailable`, `error`, `retry`, `play`, `pause`, `seek`,
-`mute`, `unmute`, `volume`, `speed`, `highlightOn`, `highlightOff`. Anything you omit
-keeps its English default.
+Every key is a plain string, and anything you omit keeps its English default.
+
+| Key | Default | Notes |
+|-----|---------|-------|
+| `label` | `Listen to this article` | Names the player region; also the media-session title fallback |
+| `loading` | `Loading audio…` | |
+| `unavailable` | `Audio not available for this article` | No audio for this post |
+| `error` | `Audio could not be loaded` | Audio exists but failed |
+| `retry` | `Try again` | |
+| `play` / `pause` | `Play` / `Pause` | |
+| `seek` | `Seek` | |
+| `seekPosition` | `{current} of {total}` | Announced by the seek slider; placeholders are spoken durations |
+| `mute` / `unmute` | `Mute` / `Unmute` | |
+| `volume` | `Volume` | |
+| `speed` | `Playback speed` | |
+| `speedValue` | `{rate}x` | Each entry in the speed menu |
+| `highlightOn` / `highlightOff` | `Disable…` / `Enable word highlighting` | |
+| `skipBack` / `skipForward` | `Back {seconds} seconds` / `Forward {seconds} seconds` | |
+
+Placeholders in `{braces}` are substituted at render time. An unrecognised one is left
+visible rather than blanked, so a typo in a translation shows up instead of quietly
+disappearing — which matters when the string is an accessible label nobody sees.
 
 ### Remembering what the reader chose
 
@@ -1015,18 +1078,80 @@ Astro 4, 5 and 6 need nothing extra.
 
 Create a `vocasync.config.mjs` file in your project root.
 
-### Words not highlighting
+### No words are highlighted
 
-1. Make sure the rehype plugin is configured in `astro.config.mjs`
-2. Check that `collectionName` matches your collection
-3. Verify `audioMapPath` points to your audio map
-4. Ensure content is wrapped in `[data-article-body]`
+1. **On Astro 7, install `@astrojs/markdown-remark`.** Astro 7 stopped bundling it, and
+   rehype plugins — which is what produces the word spans — do not run without it. The
+   build fails with a message naming the package.
+2. Check the rehype plugins are registered in `astro.config.mjs`, and that
+   `collectionName` and `audioMapPath` match your setup.
+3. Make sure the article content is inside the element named by `articleSelector`
+   (`[data-article-body]` by default).
+4. View source: each word should be a `<span class="vocasync-word" data-i="…">`. If the
+   spans are absent the rehype plugin did not run; if they are present but nothing
+   lights up, the audio map and the page disagree — see below.
 
-### Audio not playing
+### Highlighting drifts partway through a post
 
-1. Run `npx vocasync sync` to generate audio
-2. Check that `audio-map.json` exists and has entries
-3. Verify the `slug` prop matches your content slug
+The audio map is stale. `data-i` indices are assigned at build time against the word
+stream in `audio-map.json`, so editing a post without re-running `npx vocasync sync`
+leaves the spans pointing at the wrong words from the edit onwards.
+
+### The player is invisible or unstyled
+
+The stylesheet is injected by the integration. If you passed `styles: false`, import it
+yourself — `@vocasync/astro/styles/vocasync.css`. If you are driving the engine
+headlessly with your own markup, you still need `content.css` for the word spans.
+
+### My CSS override does not apply
+
+It should — every rule the player ships is inside a cascade layer *and* wrapped in
+`:where()`, so it has zero specificity and loses to anything you write. If an override
+is not landing, it is almost certainly a selector that does not match rather than a
+specificity problem. Check the element in devtools; the player root is
+`.vocasync-player`, and it carries `data-variant`, `data-size` and `data-player-state`
+attributes you can target.
+
+You should never need `!important`. If you do, that is a bug worth reporting.
+
+### The player stays light when my site goes dark
+
+`.dark`, `[data-theme="dark"]` and `[data-mode="dark"]` are recognised automatically.
+If your site signals dark mode some other way, name it:
+
+```js
+vocasync({ theme: { darkSelector: '[data-appearance="night"]' } })
+```
+
+If your site has its own tokens, the tidier fix is to point ours at them — then the
+player follows whatever your tokens do, in both directions.
+
+### The play button does nothing
+
+Check `data-player-state` on the player root:
+
+- `error` — the audio failed to load. Usually an expired publishable key; re-run
+  `npx vocasync sync`. The player shows a retry button.
+- `no-audio` — there is no entry for this `slug` in the audio map.
+- `ready` with `data-player-buffering` — it is still loading, not broken.
+
+Browsers also block playback that is not user-initiated; a `NotAllowedError` in the
+console after a programmatic `play()` is expected, not a fault.
+
+### Several players on one page interfere
+
+They should not, but each needs its own `articleSelector` if more than one article body
+is on the page — otherwise click-to-seek cannot tell which player owns a word, and the
+first one wins. A warning is logged in that case.
+
+By default, starting one player pauses the others. Pass `exclusive={false}` if you want
+them to overlap.
+
+### The player stops working after a client-side navigation
+
+The player boots on `astro:page-load` and tears down on `astro:before-swap`, so
+`<ClientRouter />` is supported. If you are using a different client-side router, call
+`install()` from `@vocasync/astro/player-core` after each navigation.
 
 ### CLI errors
 

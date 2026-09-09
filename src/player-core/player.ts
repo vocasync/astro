@@ -11,7 +11,7 @@ import {
   writePosition,
   writePrefs,
 } from "./storage.js";
-import { defaultStrings, describeTime, type PlayerStrings } from "./strings.js";
+import { defaultStrings, describeTime, formatString, type PlayerStrings } from "./strings.js";
 import type { WordTiming } from "./timings.js";
 
 /**
@@ -206,7 +206,7 @@ export function createPlayer(root: HTMLElement): PlayerInstance | null {
    */
   function renderSpeed() {
     const rate = audio.playbackRate;
-    if (speedLabel) speedLabel.textContent = strings.speedValue(rate);
+    if (speedLabel) speedLabel.textContent = formatString(strings.speedValue, { rate });
     if (!speedMenu) return;
     for (const step of Array.from(speedMenu.querySelectorAll(SPEED_STEP_SELECTOR))) {
       const match = Number.parseFloat((step as HTMLElement).dataset.speed ?? "") === rate;
@@ -252,7 +252,10 @@ export function createPlayer(root: HTMLElement): PlayerInstance | null {
       // Without this a screen reader reads the raw seconds: "43".
       progressInput.setAttribute(
         "aria-valuetext",
-        strings.seekPosition(describeTime(t), describeTime(audio.duration))
+        formatString(strings.seekPosition, {
+          current: describeTime(t),
+          total: describeTime(audio.duration),
+        })
       );
       // Painted behind the bar by player.css, alongside the buffered range.
       progressInput.style.setProperty(

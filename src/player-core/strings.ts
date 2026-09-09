@@ -17,19 +17,22 @@ export interface PlayerStrings {
   play: string;
   pause: string;
   seek: string;
-  /** Announced by the seek slider, e.g. "2 minutes 30 seconds of 10 minutes". */
-  seekPosition: (current: string, total: string) => string;
+  /**
+   * Announced by the seek slider. `{current}` and `{total}` are replaced with spoken
+   * durations, e.g. "2 minutes 30 seconds of 10 minutes".
+   */
+  seekPosition: string;
   mute: string;
   unmute: string;
   volume: string;
   speed: string;
-  /** Label for a speed step, e.g. "1.5x". */
-  speedValue: (rate: number) => string;
+  /** Label for a speed step. `{rate}` is replaced with the playback rate. */
+  speedValue: string;
   highlightOn: string;
   highlightOff: string;
-  /** Accessible name for the skip-back control, e.g. "Back 15 seconds". */
-  skipBack: (seconds: number) => string;
-  skipForward: (seconds: number) => string;
+  /** Accessible name for skip-back. `{seconds}` is replaced with the interval. */
+  skipBack: string;
+  skipForward: string;
 }
 
 export const defaultStrings: PlayerStrings = {
@@ -41,26 +44,36 @@ export const defaultStrings: PlayerStrings = {
   play: "Play",
   pause: "Pause",
   seek: "Seek",
-  seekPosition: (current, total) => `${current} of ${total}`,
+  seekPosition: "{current} of {total}",
   mute: "Mute",
   unmute: "Unmute",
   volume: "Volume",
   speed: "Playback speed",
-  speedValue: (rate) => `${rate}x`,
+  speedValue: "{rate}x",
   highlightOn: "Disable word highlighting",
   highlightOff: "Enable word highlighting",
-  skipBack: (seconds) => `Back ${seconds} seconds`,
-  skipForward: (seconds) => `Forward ${seconds} seconds`,
+  skipBack: "Back {seconds} seconds",
+  skipForward: "Forward {seconds} seconds",
 };
 
-/** The subset that can cross the wire as JSON; functions are not serialisable. */
-export type SerializableStrings = Omit<
-  PlayerStrings,
-  "seekPosition" | "speedValue" | "skipBack" | "skipForward"
->;
+/**
+ * Every string is a plain string, so all of them are translatable and all of them
+ * survive JSON. They were briefly functions, which quietly made the four
+ * placeholder-bearing ones -- the skip labels, the rate label and the seek
+ * announcement -- impossible to override at all.
+ */
+export type SerializableStrings = PlayerStrings;
 
-export function resolveStrings(overrides?: Partial<SerializableStrings>): PlayerStrings {
+export function resolveStrings(overrides?: Partial<PlayerStrings>): PlayerStrings {
   return { ...defaultStrings, ...(overrides ?? {}) };
+}
+
+/**
+ * Substitute `{name}` placeholders. Unknown placeholders are left alone rather than
+ * blanked, so a mistyped key in a translation is visible instead of silently missing.
+ */
+export function formatString(template: string, vars: Record<string, string | number>): string {
+  return template.replace(/\{(\w+)\}/g, (match, key) => (key in vars ? String(vars[key]) : match));
 }
 
 /** Spoken duration for aria-valuetext: "2 minutes 30 seconds", not "150". */
