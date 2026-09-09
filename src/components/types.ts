@@ -21,7 +21,11 @@ export type ControlName =
   | "highlight"
   | "speed"
   /** Mute button plus volume slider. */
-  | "volume";
+  | "volume"
+  /** Jump backwards by `skipSeconds`. */
+  | "skip-back"
+  /** Jump forwards by `skipSeconds`. */
+  | "skip-forward";
 
 export const DEFAULT_CONTROLS: ControlName[] = ["play", "progress", "highlight", "speed", "volume"];
 
@@ -75,6 +79,8 @@ export interface AudioPlayerProps {
   controls?: ControlName[];
   /** Playback rates offered by the speed menu. */
   speeds?: number[];
+  /** How far the skip controls and arrow keys jump. @default 15 */
+  skipSeconds?: number;
 
   /** Overrides for any visible text or accessible label. */
   strings?: Partial<SerializableStrings>;
@@ -96,6 +102,33 @@ export interface AudioPlayerProps {
 
   /** Pause other players on the page when this one starts. @default true */
   exclusive?: boolean;
+
+  /**
+   * Remember speed, volume, mute and highlighting across pages and visits.
+   * @default true
+   */
+  rememberPreferences?: boolean;
+
+  /**
+   * Resume where the reader left off, keyed by `slug`.
+   *
+   * Off by default: it is a pleasant surprise on a long article and a confusing one
+   * on a short post that someone expects to start from the beginning.
+   *
+   * @default false
+   */
+  rememberPosition?: boolean;
+
+  /**
+   * Publish title and artwork to the OS media controls (lock screen, media keys).
+   * @default true
+   */
+  mediaSession?: boolean;
+
+  /** Title for the OS media controls. Falls back to the accessible label. */
+  title?: string;
+  /** Artwork URL for the OS media controls. */
+  artwork?: string;
 
   /** Show a message when the article has no audio. @default true */
   showPlaceholder?: boolean;

@@ -318,12 +318,18 @@ players are on it.
 | `size` | `"sm" \| "md" \| "lg"` | `"md"` | Scales the whole player |
 | `controls` | `ControlName[]` | see below | Which controls render, and in what order |
 | `speeds` | `number[]` | `[0.5, 0.75, 1, 1.25, 1.5, 2]` | Playback rates in the speed menu |
+| `skipSeconds` | `number` | `15` | How far the skip controls and arrow keys jump |
 | `strings` | `Partial<PlayerStrings>` | English | Every visible string and accessible label |
 | `articleSelector` | `string` | `"[data-article-body]"` | Element containing the word spans |
 | `highlight` | `HighlightOptions` | `{}` | `{ enabled, trailLength, clickToSeek }` |
 | `dock` | `DockOptions` | `{}` | `{ enabled }` — the floating player |
 | `autoScroll` | `"off" \| "paragraph"` | `"off"` | Scroll the spoken paragraph into view |
 | `exclusive` | `boolean` | `true` | Starting this player pauses the others |
+| `rememberPreferences` | `boolean` | `true` | Persist speed, volume, mute and highlighting |
+| `rememberPosition` | `boolean` | `false` | Resume where the reader left off, keyed by `slug` |
+| `mediaSession` | `boolean` | `true` | Publish to the OS media controls |
+| `title` | `string` | — | Title for the OS media controls |
+| `artwork` | `string` | — | Artwork URL for the OS media controls |
 | `showPlaceholder` | `boolean` | `true` | Show a message when there is no audio |
 | `class` | `string` | `""` | Extra classes on the root |
 | `id` | `string` | derived | Overrides the generated element id |
@@ -344,6 +350,8 @@ players are on it.
 | `highlight` | Word-highlighting toggle |
 | `speed` | Playback-speed menu |
 | `volume` | Mute button and volume slider |
+| `skip-back` | Jump backwards by `skipSeconds` |
+| `skip-forward` | Jump forwards by `skipSeconds` |
 
 Default: `["play", "progress", "highlight", "speed", "volume"]`. Anything you leave out
 is not rendered — pass `[]` with `dock={{ enabled: true }}` for a dock-only player.
@@ -363,6 +371,7 @@ Every slot falls back to the shipped markup, so override only what you need.
 | `icon-play`, `icon-pause` | Play/pause icons |
 | `icon-volume`, `icon-muted` | Volume icons |
 | `icon-highlight-on`, `icon-highlight-off` | Highlight-toggle icons |
+| `icon-skip-back`, `icon-skip-forward` | Skip icons |
 | `placeholder` | The "no audio" message |
 | `error` | The failed-to-load message and its retry button |
 | `before`, `after` | Arbitrary content above/below the controls |
@@ -397,6 +406,33 @@ Keys: `label`, `loading`, `unavailable`, `error`, `retry`, `play`, `pause`, `see
 `mute`, `unmute`, `volume`, `speed`, `highlightOn`, `highlightOff`. Anything you omit
 keeps its English default.
 
+### Remembering what the reader chose
+
+Speed, volume, mute and the highlighting toggle persist across pages and visits by
+default — set `rememberPreferences={false}` to opt out. `rememberPosition` is separate
+and off by default: resuming is welcome on a long article and confusing on a short post
+someone expects to start from the beginning. When on, a position is only restored if
+the reader was more than five seconds in and more than ten seconds from the end, and it
+is cleared once the audio finishes.
+
+All of it degrades quietly. `localStorage` throws outright in browsers configured to
+block site data, and stored values are validated before use — a hand-edited playback
+rate is not assigned to the media element.
+
+### Loading and failure states
+
+The player root carries `data-player-state` (`loading`, `ready`, `no-audio`, `error`)
+and `data-player-buffering` while the media element is waiting on the network. They are
+distinct on purpose: a slow connection should not look like a broken one. Both are
+styleable:
+
+```css
+:root:has(.vocasync-player[data-player-buffering]) { /* … */ }
+```
+
+The seek bar also paints its buffered range, driven by `--vocasync-played` and
+`--vocasync-buffered`.
+
 #### Events
 
 The root element dispatches bubbling `CustomEvent`s, so you can hook analytics or
@@ -419,10 +455,13 @@ Available when focus is inside the player.
 | Key | Action |
 |-----|--------|
 | `Space` | Play/pause |
-| `←` / `→` | Seek 5 seconds |
+| `←` / `→` | Skip by `skipSeconds` (default 15) |
 | `M` | Toggle mute |
 | `H` | Toggle word highlighting |
 | `Esc` | Close the speed menu |
+
+Inside the speed menu, `↑`/`↓`, `Home` and `End` move between rates and `Esc` returns
+focus to the trigger.
 
 ### Word Highlighting
 
@@ -779,6 +818,7 @@ falls back instead of blanking the component.
 | `--vocasync-text-faint` | text mixed further toward surface |
 | `--vocasync-border` | text mixed heavily toward surface |
 | `--vocasync-track` | the unfilled part of a slider |
+| `--vocasync-buffered-color` | the loaded-so-far range behind the seek bar |
 | `--vocasync-highlight-active-bg` | highlight at 25% |
 | `--vocasync-highlight-trail-bg` | highlight at 12% |
 | `--vocasync-highlight-active-text` | unset — the active word keeps the prose colour |
@@ -826,6 +866,8 @@ value rescales the player. The `size` prop sets it per player.
 | Token | Default |
 |-------|---------|
 | `--vocasync-slider-height` | `0.375rem` |
+| `--vocasync-played` | runtime state — the played range, written by the player |
+| `--vocasync-buffered` | runtime state — the loaded range, written by the player |
 | `--vocasync-slider-thumb-size` | `1rem` |
 | `--vocasync-volume-width` | `4rem` |
 | `--vocasync-dock-height` | `3.5rem` |
@@ -930,6 +972,9 @@ In most cases you can delete the overrides entirely and set the four seeds inste
 
 ### Behaviour changes
 
+- **Arrow keys skip 15 seconds, not 5.** Set `skipSeconds={5}` to keep the old jump.
+- **Speed, volume, mute and highlighting are remembered** across pages and visits. Set
+  `rememberPreferences={false}` to opt out.
 - **Autoscroll is off by default.** It used to follow the spoken word with no way to
   stop it, taking over the reader's scroll position. Pass `autoScroll="paragraph"` to
   keep the old behaviour.
@@ -938,6 +983,8 @@ In most cases you can delete the overrides entirely and set the four seeds inste
   that look interactive but do nothing.
 - **Click-to-seek no longer depends on highlighting.** Turning highlighting off used to
   disable it silently.
+- **Autoscroll yields to the reader.** Scrolling suspends it for a few seconds rather
+  than dragging the page back.
 
 ### Rehype plugin
 

@@ -2,6 +2,15 @@ import { createHighlighter, type Highlighter } from "./highlighter.js";
 import { resolveAudioSrc } from "./media-url.js";
 import * as registry from "./registry.js";
 import { registerSeekRoot } from "./seek-delegate.js";
+import {
+  clearPosition,
+  getStorage,
+  readPosition,
+  readPrefs,
+  resumePoint,
+  writePosition,
+  writePrefs,
+} from "./storage.js";
 import { defaultStrings, describeTime, type PlayerStrings } from "./strings.js";
 import type { WordTiming } from "./timings.js";
 
@@ -31,6 +40,13 @@ interface PlayerOptions {
   autoScroll?: "off" | "paragraph";
   dock?: boolean;
   exclusive?: boolean;
+  skipSeconds?: number;
+  rememberPreferences?: boolean;
+  rememberPosition?: boolean;
+  mediaSession?: boolean;
+  slug?: string;
+  title?: string;
+  artwork?: string;
 }
 
 interface PlayerConfig {
@@ -113,6 +129,10 @@ export function createPlayer(root: HTMLElement): PlayerInstance | null {
   const clickToSeekEnabled = opts.clickToSeek !== false;
   const autoScrollEnabled = opts.autoScroll === "paragraph";
   const exclusive = opts.exclusive !== false;
+  const skipSeconds = Number.isFinite(opts.skipSeconds) ? (opts.skipSeconds as number) : 15;
+  const storage = opts.rememberPreferences === false ? null : getStorage(view);
+  const positionStore = opts.rememberPosition ? getStorage(view) : null;
+  const slug = opts.slug ?? "";
 
   let highlightingEnabled = opts.highlighting !== false;
   let isPlaying = false;
@@ -179,6 +199,22 @@ export function createPlayer(root: HTMLElement): PlayerInstance | null {
     }
   }
 
+  /**
+   * Reflect the current playback rate in the label, the menu selection and the
+   * announced state. Restoring a saved preference used to set the media element
+   * without touching any of this, so the controls claimed 1x while playing at 1.5x.
+   */
+  function renderSpeed() {
+    const rate = audio.playbackRate;
+    if (speedLabel) speedLabel.textContent = strings.speedValue(rate);
+    if (!speedMenu) return;
+    for (const step of Array.from(speedMenu.querySelectorAll(SPEED_STEP_SELECTOR))) {
+      const match = Number.parseFloat((step as HTMLElement).dataset.speed ?? "") === rate;
+      step.toggleAttribute("data-active", match);
+      step.setAttribute("aria-checked", match ? "true" : "false");
+    }
+  }
+
   function renderHighlightButton() {
     if (!highlightBtn) return;
     swapIcons(
@@ -194,6 +230,20 @@ export function createPlayer(root: HTMLElement): PlayerInstance | null {
     );
   }
 
+  /**
+   * The loaded-so-far range, exposed as a percentage the stylesheet paints behind the
+   * seek bar. Without it there is no way to tell a slow network from a broken one.
+   */
+  function renderBuffered() {
+    if (!progressInput || !Number.isFinite(audio.duration) || audio.duration <= 0) return;
+    let end = 0;
+    for (let i = 0; i < audio.buffered.length; i++) {
+      if (audio.buffered.start(i) <= audio.currentTime) end = Math.max(end, audio.buffered.end(i));
+    }
+    const percent = Math.min(100, (end / audio.duration) * 100);
+    progressInput.style.setProperty("--vocasync-buffered", `${percent}%`);
+  }
+
   function renderProgress() {
     const t = audio.currentTime;
     if (currentTimeEl) currentTimeEl.textContent = formatTime(t);
@@ -203,6 +253,11 @@ export function createPlayer(root: HTMLElement): PlayerInstance | null {
       progressInput.setAttribute(
         "aria-valuetext",
         strings.seekPosition(describeTime(t), describeTime(audio.duration))
+      );
+      // Painted behind the bar by player.css, alongside the buffered range.
+      progressInput.style.setProperty(
+        "--vocasync-played",
+        audio.duration > 0 ? `${(t / audio.duration) * 100}%` : "0%"
       );
     }
     if (miniTimeEl) miniTimeEl.textContent = formatTime(t);
@@ -242,6 +297,7 @@ export function createPlayer(root: HTMLElement): PlayerInstance | null {
 
   function toggleHighlighting() {
     highlightingEnabled = !highlightingEnabled;
+    writePrefs(storage, { highlighting: highlightingEnabled });
     renderHighlightButton();
     if (!highlightingEnabled) {
       highlighter?.clear();
@@ -268,6 +324,45 @@ export function createPlayer(root: HTMLElement): PlayerInstance | null {
   function togglePlay() {
     if (audio.paused) play();
     else audio.pause();
+  }
+
+  /**
+   * Publish to the OS media controls: lock screen, media keys, the notification
+   * shade. Entirely optional -- unsupported browsers simply have no navigator.
+   * mediaSession, and a failure here must never affect playback.
+   */
+  function publishMediaSession() {
+    if (opts.mediaSession === false) return;
+    const session = (
+      view.navigator as unknown as {
+        mediaSession?: {
+          metadata: unknown;
+          setActionHandler(action: string, handler: (() => void) | null): void;
+        };
+      }
+    ).mediaSession;
+    const MetadataCtor = (view as unknown as { MediaMetadata?: new (init: unknown) => unknown })
+      .MediaMetadata;
+    if (!session || !MetadataCtor) return;
+    try {
+      session.metadata = new MetadataCtor({
+        title: opts.title || strings.label,
+        artwork: opts.artwork ? [{ src: opts.artwork }] : undefined,
+      });
+      session.setActionHandler("play", () => play());
+      session.setActionHandler("pause", () => audio.pause());
+      session.setActionHandler("seekbackward", () => skip(-skipSeconds));
+      session.setActionHandler("seekforward", () => skip(skipSeconds));
+    } catch {
+      // Some browsers reject individual action handlers; metadata alone is fine.
+    }
+  }
+
+  function skip(delta: number) {
+    const max = Number.isFinite(audio.duration) ? audio.duration : Number.POSITIVE_INFINITY;
+    audio.currentTime = Math.min(max, Math.max(0, audio.currentTime + delta));
+    renderProgress();
+    updateHighlighting();
   }
 
   /* ---------------------------------------------------------------- mini player */
@@ -309,6 +404,14 @@ export function createPlayer(root: HTMLElement): PlayerInstance | null {
   setState("loading");
   audio.src = src;
 
+  // Restore what the reader chose last time, before anything renders, so the controls
+  // never show one value and then visibly correct themselves.
+  const prefs = readPrefs(storage);
+  if (prefs.rate !== undefined) audio.playbackRate = prefs.rate;
+  if (prefs.volume !== undefined) audio.volume = prefs.volume;
+  if (prefs.muted !== undefined) audio.muted = prefs.muted;
+  if (prefs.highlighting !== undefined) highlightingEnabled = prefs.highlighting;
+
   const instance: PlayerInstance & registry.RegisteredPlayer = {
     root,
     pause() {
@@ -332,6 +435,8 @@ export function createPlayer(root: HTMLElement): PlayerInstance | null {
 
   on(playBtn, "click", togglePlay);
   on(highlightBtn, "click", toggleHighlighting);
+  on(controlsEl.querySelector('[data-action="skip-back"]'), "click", () => skip(-skipSeconds));
+  on(controlsEl.querySelector('[data-action="skip-forward"]'), "click", () => skip(skipSeconds));
 
   on(audio, "play", () => {
     isPlaying = true;
@@ -354,6 +459,8 @@ export function createPlayer(root: HTMLElement): PlayerInstance | null {
     isPlaying = false;
     renderPlayState(false);
     stopLoop();
+    // A finished article should reopen at the beginning, not at its last second.
+    clearPosition(positionStore, slug);
     emit("ended");
   });
 
@@ -387,11 +494,28 @@ export function createPlayer(root: HTMLElement): PlayerInstance | null {
     if (progressInput && Number.isFinite(audio.duration)) {
       progressInput.max = String(audio.duration);
     }
+    const resume = resumePoint(readPosition(positionStore, slug), audio.duration);
+    if (resume !== null) audio.currentTime = resume;
+    renderProgress();
+    renderBuffered();
     setState("ready");
+    publishMediaSession();
   });
 
+  on(audio, "progress", renderBuffered);
+
+  // Distinguish "still loading" from "broken". Previously a stalled request left the
+  // controls looking interactive with no feedback at all.
+  on(audio, "waiting", () => root.setAttribute("data-player-buffering", ""));
+  on(audio, "stalled", () => root.setAttribute("data-player-buffering", ""));
+  on(audio, "playing", () => root.removeAttribute("data-player-buffering"));
+  on(audio, "canplay", () => root.removeAttribute("data-player-buffering"));
+
   on(audio, "canplay", () => setState("ready"));
-  on(audio, "timeupdate", renderProgress);
+  on(audio, "timeupdate", () => {
+    renderProgress();
+    if (positionStore && !audio.paused) writePosition(positionStore, slug, audio.currentTime);
+  });
 
   on(progressInput, "input", () => {
     if (!progressInput) return;
@@ -404,17 +528,72 @@ export function createPlayer(root: HTMLElement): PlayerInstance | null {
     const next = Number.parseFloat(volumeInput.value);
     if (Number.isFinite(next)) audio.volume = Math.min(1, Math.max(0, next / 100));
     renderVolume();
+    writePrefs(storage, { volume: audio.volume });
   });
 
   on(muteBtn, "click", () => {
     audio.muted = !audio.muted;
     renderVolume();
+    writePrefs(storage, { muted: audio.muted });
   });
+
+  function speedItems(): HTMLElement[] {
+    return speedMenu
+      ? (Array.from(speedMenu.querySelectorAll(SPEED_STEP_SELECTOR)) as HTMLElement[])
+      : [];
+  }
+
+  function openSpeedMenu(focusIndex: number | null = null) {
+    if (!speedMenu) return;
+    speedMenu.hidden = false;
+    speedBtn?.setAttribute("aria-expanded", "true");
+    const items = speedItems();
+    const active = items.findIndex((i) => i.hasAttribute("data-active"));
+    items[focusIndex ?? (active === -1 ? 0 : active)]?.focus();
+  }
+
+  function closeSpeedMenu(returnFocus = false) {
+    if (!speedMenu || speedMenu.hidden) return;
+    speedMenu.hidden = true;
+    speedBtn?.setAttribute("aria-expanded", "false");
+    if (returnFocus) speedBtn?.focus();
+  }
 
   on(speedBtn, "click", () => {
     if (!speedMenu) return;
-    speedMenu.hidden = !speedMenu.hidden;
-    speedBtn?.setAttribute("aria-expanded", speedMenu.hidden ? "false" : "true");
+    if (speedMenu.hidden) openSpeedMenu();
+    else closeSpeedMenu();
+  });
+
+  // A menu you can open but not navigate is only half a menu.
+  on(speedMenu, "keydown", (event) => {
+    const e = event as KeyboardEvent;
+    const items = speedItems();
+    const index = items.indexOf(e.target as HTMLElement);
+    if (index === -1) return;
+    switch (e.key) {
+      case "ArrowDown":
+        e.preventDefault();
+        items[(index + 1) % items.length]?.focus();
+        break;
+      case "ArrowUp":
+        e.preventDefault();
+        items[(index - 1 + items.length) % items.length]?.focus();
+        break;
+      case "Home":
+        e.preventDefault();
+        items[0]?.focus();
+        break;
+      case "End":
+        e.preventDefault();
+        items[items.length - 1]?.focus();
+        break;
+      case "Escape":
+        e.preventDefault();
+        e.stopPropagation();
+        closeSpeedMenu(true);
+        break;
+    }
   });
 
   on(speedMenu, "click", (event) => {
@@ -425,29 +604,15 @@ export function createPlayer(root: HTMLElement): PlayerInstance | null {
     const speed = Number.parseFloat(btn.dataset.speed ?? "");
     if (!Number.isFinite(speed)) return;
     audio.playbackRate = speed;
-    for (const step of Array.from(speedMenu.querySelectorAll(SPEED_STEP_SELECTOR))) {
-      step.removeAttribute("data-active");
-    }
-    btn.setAttribute("data-active", "");
-    if (speedLabel) speedLabel.textContent = strings.speedValue(speed);
-    for (const step of Array.from(speedMenu.querySelectorAll(SPEED_STEP_SELECTOR))) {
-      step.setAttribute("aria-checked", step === btn ? "true" : "false");
-    }
-    speedMenu.hidden = true;
-    speedBtn?.setAttribute("aria-expanded", "false");
+    renderSpeed();
+    closeSpeedMenu(true);
+    writePrefs(storage, { rate: speed });
     emit("ratechange", { rate: speed });
-  });
-
-  on(doc, "click", (event) => {
-    if (!speedMenu || speedMenu.hidden) return;
-    const target = event.target as Node | null;
-    if (speedBtn?.contains(target as Node) || speedMenu.contains(target as Node)) return;
-    speedMenu.hidden = true;
-    speedBtn?.setAttribute("aria-expanded", "false");
   });
 
   on(root, "keydown", (event) => {
     const e = event as KeyboardEvent;
+    // Range inputs handle their own arrow keys; do not fight them.
     if ((e.target as HTMLElement | null)?.tagName === "INPUT") return;
     switch (e.code) {
       case "Space":
@@ -456,16 +621,17 @@ export function createPlayer(root: HTMLElement): PlayerInstance | null {
         break;
       case "ArrowLeft":
         e.preventDefault();
-        audio.currentTime = Math.max(0, audio.currentTime - 5);
+        skip(-skipSeconds);
         break;
       case "ArrowRight":
         e.preventDefault();
-        audio.currentTime = Math.min(audio.duration || 0, audio.currentTime + 5);
+        skip(skipSeconds);
         break;
       case "KeyM":
         e.preventDefault();
         audio.muted = !audio.muted;
         renderVolume();
+        writePrefs(storage, { muted: audio.muted });
         break;
       case "KeyH":
         e.preventDefault();
@@ -474,9 +640,7 @@ export function createPlayer(root: HTMLElement): PlayerInstance | null {
       case "Escape":
         if (speedMenu && !speedMenu.hidden) {
           e.preventDefault();
-          speedMenu.hidden = true;
-          speedBtn?.setAttribute("aria-expanded", "false");
-          (speedBtn as HTMLElement | null)?.focus();
+          closeSpeedMenu(true);
         }
         break;
     }
@@ -522,8 +686,32 @@ export function createPlayer(root: HTMLElement): PlayerInstance | null {
     initHighlighting();
   }
 
+  // Following the spoken word is helpful until the reader scrolls somewhere else, at
+  // which point continuing to drag them back is hostile. Resume when playback moves on
+  // to a new paragraph rather than fighting for the scroll position.
+  if (autoScrollEnabled) {
+    let suspendUntil = 0;
+    on(view, "wheel", () => {
+      suspendUntil = Date.now() + 4000;
+      highlighter?.setAutoScroll(false);
+    });
+    on(view, "touchmove", () => {
+      suspendUntil = Date.now() + 4000;
+      highlighter?.setAutoScroll(false);
+    });
+    const resume = view.setInterval(() => {
+      if (suspendUntil && Date.now() > suspendUntil) {
+        suspendUntil = 0;
+        highlighter?.setAutoScroll(true);
+      }
+    }, 1000);
+    cleanups.push(() => view.clearInterval(resume));
+  }
+
   setupMiniPlayer();
   renderHighlightButton();
+  renderSpeed();
+  if (volumeInput) volumeInput.value = String(Math.round(audio.volume * 100));
   renderVolume();
   setState("ready");
   emit("ready");

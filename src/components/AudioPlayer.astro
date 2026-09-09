@@ -26,12 +26,18 @@ const {
   size = "md",
   controls = DEFAULT_CONTROLS,
   speeds = [0.5, 0.75, 1, 1.25, 1.5, 2],
+  skipSeconds = 15,
   strings = {},
   articleSelector = "[data-article-body]",
   highlight = {},
   dock = {},
   autoScroll = "off",
   exclusive = true,
+  rememberPreferences = true,
+  rememberPosition = false,
+  mediaSession = true,
+  title,
+  artwork,
   showPlaceholder = true,
   class: className = "",
   id,
@@ -64,6 +70,13 @@ const config = {
     autoScroll,
     dock: dockEnabled,
     exclusive,
+    skipSeconds,
+    rememberPreferences,
+    rememberPosition,
+    mediaSession,
+    slug,
+    title,
+    artwork,
   },
   strings: {
     play: s.play,
@@ -72,6 +85,9 @@ const config = {
     unmute: s.unmute,
     highlightOn: s.highlightOn,
     highlightOff: s.highlightOff,
+    // Only the strings the runtime needs. skipBack/skipForward are functions, so they
+    // are not serialisable -- and they are only used server-side, on the markup below.
+    label: s.label,
   },
 };
 const configJson = JSON.stringify(config).replace(/</g, "\\u003c");
@@ -163,6 +179,38 @@ const configJson = JSON.stringify(config).replace(/</g, "\\u003c");
             <span class="vocasync-player__time-sep">/</span>
             <span data-time="duration">0:00</span>
           </div>
+        )}
+
+        {control === "skip-back" && (
+          <button
+            type="button"
+            class="vocasync-player__icon-btn"
+            aria-label={s.skipBack(skipSeconds)}
+            data-action="skip-back"
+          >
+            <slot name="icon-skip-back">
+              <svg class="vocasync-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M11 17l-5-5 5-5" />
+                <path d="M18 17l-5-5 5-5" />
+              </svg>
+            </slot>
+          </button>
+        )}
+
+        {control === "skip-forward" && (
+          <button
+            type="button"
+            class="vocasync-player__icon-btn"
+            aria-label={s.skipForward(skipSeconds)}
+            data-action="skip-forward"
+          >
+            <slot name="icon-skip-forward">
+              <svg class="vocasync-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M13 17l5-5-5-5" />
+                <path d="M6 17l5-5-5-5" />
+              </svg>
+            </slot>
+          </button>
         )}
 
         {control === "highlight" && (

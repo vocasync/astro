@@ -192,6 +192,31 @@
     cursor: pointer;
   }
 
+  /*
+   * Played and buffered ranges painted behind the seek bar. The player sets
+   * --vocasync-played and --vocasync-buffered as percentages; without the buffered
+   * range there is no way to tell a slow network from a broken one.
+   */
+  :where(.vocasync-player__progress) {
+    background-image:
+      linear-gradient(
+        to right,
+        var(--vocasync-accent) var(--vocasync-played, 0%),
+        transparent var(--vocasync-played, 0%)
+      ),
+      linear-gradient(
+        to right,
+        var(--vocasync-buffered-color) var(--vocasync-buffered, 0%),
+        transparent var(--vocasync-buffered, 0%)
+      );
+    background-repeat: no-repeat;
+  }
+
+  /* Something is loading: fade the bar rather than showing a second spinner. */
+  :where(.vocasync-player)[data-player-buffering] :where(.vocasync-player__progress) {
+    opacity: 0.6;
+  }
+
   :where(.vocasync-player__progress)::-webkit-slider-thumb,
   :where(.vocasync-player__volume-slider)::-webkit-slider-thumb {
     -webkit-appearance: none;

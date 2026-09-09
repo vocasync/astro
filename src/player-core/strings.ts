@@ -27,6 +27,9 @@ export interface PlayerStrings {
   speedValue: (rate: number) => string;
   highlightOn: string;
   highlightOff: string;
+  /** Accessible name for the skip-back control, e.g. "Back 15 seconds". */
+  skipBack: (seconds: number) => string;
+  skipForward: (seconds: number) => string;
 }
 
 export const defaultStrings: PlayerStrings = {
@@ -46,10 +49,15 @@ export const defaultStrings: PlayerStrings = {
   speedValue: (rate) => `${rate}x`,
   highlightOn: "Disable word highlighting",
   highlightOff: "Enable word highlighting",
+  skipBack: (seconds) => `Back ${seconds} seconds`,
+  skipForward: (seconds) => `Forward ${seconds} seconds`,
 };
 
 /** The subset that can cross the wire as JSON; functions are not serialisable. */
-export type SerializableStrings = Omit<PlayerStrings, "seekPosition" | "speedValue">;
+export type SerializableStrings = Omit<
+  PlayerStrings,
+  "seekPosition" | "speedValue" | "skipBack" | "skipForward"
+>;
 
 export function resolveStrings(overrides?: Partial<SerializableStrings>): PlayerStrings {
   return { ...defaultStrings, ...(overrides ?? {}) };
