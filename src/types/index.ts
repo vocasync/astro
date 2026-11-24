@@ -261,6 +261,8 @@ export interface SyncResult {
   status: SyncStatus;
   projectUuid?: string;
   error?: string;
+  /** A v2.0-format content hash was rewritten to the current format (no API call). */
+  hashUpgraded?: boolean;
 }
 
 /**

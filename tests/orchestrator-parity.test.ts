@@ -28,9 +28,14 @@ describe("orchestrator parity", () => {
   test("align participates in the content hash", () => {
     // Otherwise flipping it would leave the hash unchanged and the entry considered
     // current, so the switch would appear to do nothing until the next content edit.
-    expect(source).toContain(
-      "JSON.stringify([speechDoc.normalisedSpeechtext, voice, language, format, align])"
+    // The hash shape itself is asserted against the real `contentHashFor` in
+    // content-hash.test.ts; here, that the orchestrator hashes through it with `align`.
+    expect(source).toContain("const contentHash = contentHashFor(hashInputs);");
+    const inputs = source.slice(
+      source.indexOf("const hashInputs = {"),
+      source.indexOf("const contentHash = contentHashFor(hashInputs);")
     );
+    expect(inputs).toContain("align,");
   });
 
   test("the artifact records what was asked of it", () => {

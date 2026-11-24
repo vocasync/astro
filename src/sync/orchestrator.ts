@@ -3,7 +3,6 @@ import { FormatSchema, LanguageSchema, type VocaSyncConfig, VoiceSchema } from "
 import { canAlign, LANGUAGE_NAMES, toAlignmentLocale } from "../config/languages.js";
 import { getAudioEntry, loadAudioMap, saveAudioMap, setAudioEntry } from "../core/audio-map.js";
 import { loadContent } from "../core/content-loader.js";
-import { computeHash } from "../core/hash-manager.js";
 import { buildSpeechDocument } from "../core/speech-builder.js";
 import type {
   AlignedWord,
@@ -13,6 +12,7 @@ import type {
   SyncResult,
   SyncSummary,
 } from "../types/index.js";
+import { contentHashFor, matchStoredHash } from "./content-hash.js";
 
 export interface SyncOptions {
   only?: string;
@@ -131,7 +131,8 @@ export async function sync(
     else synced++;
   }
 
-  if (!dryRun && synced > 0) {
+  const hashesUpgraded = results.some((r) => r.hashUpgraded);
+  if (!dryRun && (synced > 0 || hashesUpgraded)) {
     onProgress("Saving audio map...", "info");
     audioMap.version = 3;
     await saveAudioMap(config.output.audioMapPath, audioMap);
@@ -159,14 +160,36 @@ async function processItem(
 
     const speechDoc = await buildSpeechDocument(item, { math: config.math });
     // `align` participates in the hash: flipping it changes what the artifact is.
-    const contentHash = computeHash(
-      JSON.stringify([speechDoc.normalisedSpeechtext, voice, language, format, align])
-    );
+    const hashInputs = {
+      normalisedSpeechtext: speechDoc.normalisedSpeechtext,
+      voice,
+      language,
+      format,
+      align,
+    };
+    const contentHash = contentHashFor(hashInputs);
 
     const existingEntry = getAudioEntry(audioMap, item.slug);
     if (!force && isUpToDate(existingEntry, contentHash, align)) {
       onProgress(`⏭ ${item.slug} - unchanged`, "info");
       return { slug: item.slug, status: "unchanged" };
+    }
+
+    // An entry written by v2.0.x carries the hash shape from before `align` joined it.
+    // Same content, same parameters, same artifact: upgrade the hash in place instead of
+    // paying to synthesise and align the post again.
+    if (
+      !force &&
+      existingEntry &&
+      matchStoredHash(existingEntry.contentHash, hashInputs) === "legacy" &&
+      isUpToDate({ ...existingEntry, contentHash }, contentHash, align)
+    ) {
+      if (!dryRun) existingEntry.contentHash = contentHash;
+      onProgress(
+        `⏭ ${item.slug} - unchanged (${dryRun ? "would upgrade" : "upgraded"} v2.0 content hash)`,
+        "info"
+      );
+      return { slug: item.slug, status: "unchanged", hashUpgraded: !dryRun };
     }
 
     const status = existingEntry ? "updated" : "new";
