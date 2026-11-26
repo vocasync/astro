@@ -1,6 +1,12 @@
 import { type VocaSyncClient, withPublishableKey } from "../api/client.js";
 import { FormatSchema, LanguageSchema, type VocaSyncConfig, VoiceSchema } from "../config/index.js";
-import { canAlign, LANGUAGE_NAMES, toAlignmentLocale } from "../config/languages.js";
+import {
+  canAlign,
+  LANGUAGE_NAMES,
+  SYNTHESIS_SUPPORTED,
+  toAlignmentLocale,
+} from "../config/languages.js";
+import { hashVoiceKey, sendVoice } from "../config/voices.js";
 import { getAudioEntry, loadAudioMap, saveAudioMap, setAudioEntry } from "../core/audio-map.js";
 import { loadContent } from "../core/content-loader.js";
 import { buildSpeechDocument } from "../core/speech-builder.js";
@@ -18,6 +24,8 @@ export interface SyncOptions {
   only?: string;
   force?: boolean;
   dryRun?: boolean;
+  /** Languages synthesis is offered in. Defaults to `SYNTHESIS_SUPPORTED`. */
+  supportedLanguages?: readonly string[];
   onProgress?: (message: string, type?: "info" | "success" | "warn" | "error") => void;
 }
 
@@ -26,7 +34,8 @@ type Progress = NonNullable<SyncOptions["onProgress"]>;
 /** Resolve effective synthesis params from per-post frontmatter, falling back to config. */
 function resolveParams(
   item: ContentItem,
-  config: VocaSyncConfig
+  config: VocaSyncConfig,
+  supported: readonly string[]
 ): { voice: string; language: string; format: string; align: boolean } | { error: string } {
   const fm = item.frontmatter;
 
@@ -62,7 +71,10 @@ function resolveParams(
   // A post can ask for a language its own alignment cannot support. Caught here so the
   // run stops before paying for synthesis, naming the post rather than failing later
   // with an opaque rejection from the alignment endpoint.
-  if (align && !canAlign(language)) {
+  // A language synthesis no longer offers is rejected later, in `processItem`, and only
+  // for a post that would actually be synthesised -- so it never reports as an alignment
+  // problem, and an unchanged post is never errored.
+  if (align && !canAlign(language) && supported.includes(language)) {
     const name = LANGUAGE_NAMES[language] ?? language;
     return {
       error:
@@ -103,7 +115,13 @@ export async function sync(
   client: VocaSyncClient,
   options: SyncOptions = {}
 ): Promise<SyncSummary> {
-  const { only, force = false, dryRun = false, onProgress = () => {} } = options;
+  const {
+    only,
+    force = false,
+    dryRun = false,
+    supportedLanguages = SYNTHESIS_SUPPORTED,
+    onProgress = () => {},
+  } = options;
 
   const results: SyncResult[] = [];
   let unchanged = 0;
@@ -124,7 +142,12 @@ export async function sync(
   onProgress(`Found ${items.length} content items`, "info");
 
   for (const item of items) {
-    const result = await processItem(item, config, client, audioMap, { force, dryRun, onProgress });
+    const result = await processItem(item, config, client, audioMap, {
+      force,
+      dryRun,
+      supportedLanguages,
+      onProgress,
+    });
     results.push(result);
     if (result.status === "unchanged") unchanged++;
     else if (result.status === "error") errors++;
@@ -146,12 +169,17 @@ async function processItem(
   config: VocaSyncConfig,
   client: VocaSyncClient,
   audioMap: AudioMap,
-  options: { force: boolean; dryRun: boolean; onProgress: Progress }
+  options: {
+    force: boolean;
+    dryRun: boolean;
+    supportedLanguages: readonly string[];
+    onProgress: Progress;
+  }
 ): Promise<SyncResult> {
-  const { force, dryRun, onProgress } = options;
+  const { force, dryRun, supportedLanguages, onProgress } = options;
 
   try {
-    const resolved = resolveParams(item, config);
+    const resolved = resolveParams(item, config, supportedLanguages);
     if ("error" in resolved) {
       onProgress(`⚠ ${item.slug} - skipped: ${resolved.error}`, "warn");
       return { slug: item.slug, status: "error", error: resolved.error };
@@ -162,7 +190,9 @@ async function processItem(
     // `align` participates in the hash: flipping it changes what the artifact is.
     const hashInputs = {
       normalisedSpeechtext: speechDoc.normalisedSpeechtext,
-      voice,
+      // An alias target hashes as the legacy name it replaced, so every existing audio
+      // map entry keeps its hash. This is the ONLY place the voice is rewritten for hashing.
+      voice: hashVoiceKey(voice),
       language,
       format,
       align,
@@ -192,6 +222,17 @@ async function processItem(
       return { slug: item.slug, status: "unchanged", hashUpgraded: !dryRun };
     }
 
+    // Synthesis would run from here. Checked only now so a post that is already up to
+    // date never errors for a language that is no longer offered.
+    if (!supportedLanguages.includes(language)) {
+      const name = LANGUAGE_NAMES[language] ?? language;
+      const error =
+        `${name} ("${language}") is not currently available for synthesis. ` +
+        "This post's existing audio is untouched; it cannot be regenerated until the language is offered again.";
+      onProgress(`⚠ ${item.slug} - skipped: ${error}`, "warn");
+      return { slug: item.slug, status: "error", error };
+    }
+
     const status = existingEntry ? "updated" : "new";
 
     if (dryRun) {
@@ -208,7 +249,7 @@ async function processItem(
     const synthesis = await client.synthesize({
       name: `astro-${item.slug}`,
       text: speechDoc.speechtext,
-      voice,
+      voice: sendVoice(voice),
       quality: config.synthesis.quality,
       language,
       outputFormat: format,

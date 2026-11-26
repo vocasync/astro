@@ -3,6 +3,7 @@ export {
   canAlign,
   LANGUAGE_NAMES,
   SYNTHESIS_LANGUAGES,
+  SYNTHESIS_SUPPORTED,
   toAlignmentLocale,
 } from "./languages.js";
 export { loadVocaSyncConfig } from "./loader.js";
@@ -35,3 +36,4 @@ export {
   VoiceSchema,
   validateConfig,
 } from "./schema.js";
+export { hashVoiceKey, LEGACY_ALIASES, sendVoice, VOICE_IDS } from "./voices.js";

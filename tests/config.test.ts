@@ -6,16 +6,24 @@ import {
   SYNTHESIS_LANGUAGES,
   toAlignmentLocale,
 } from "../src/config/languages.js";
+import { VOICE_IDS } from "../src/config/voices.js";
 
 describe("config schemas", () => {
-  test("accepts all 9 platform voices", () => {
+  test("accepts all 9 legacy voice names as aliases", () => {
     const voices = ["alloy", "ash", "coral", "echo", "fable", "onyx", "nova", "sage", "shimmer"];
     for (const v of voices) expect(VoiceSchema.safeParse(v).success).toBe(true);
     expect(voices).toHaveLength(9);
   });
 
+  test("accepts all 45 VocaSync voices", () => {
+    expect(VOICE_IDS).toHaveLength(45);
+    expect(new Set(VOICE_IDS).size).toBe(45);
+    for (const v of VOICE_IDS) expect(VoiceSchema.safeParse(v).success).toBe(true);
+  });
+
   test("rejects unknown voices", () => {
     expect(VoiceSchema.safeParse("verse").success).toBe(false);
+    expect(VoiceSchema.safeParse("ballad").success).toBe(false);
   });
 
   test("accepts all 5 output formats incl wav", () => {
@@ -94,7 +102,7 @@ describe("config schemas", () => {
 
   test("validateConfig fills defaults", () => {
     const config = validateConfig({ collection: { name: "blog", path: "./src/content/blog" } });
-    expect(config.synthesis.voice).toBe("onyx");
+    expect(config.synthesis.voice).toBe("basalt");
     expect(config.synthesis.format).toBe("mp3");
     expect(config.language).toBe("en");
   });

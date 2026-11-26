@@ -76,7 +76,7 @@ export const SYNTHESIS_LANGUAGES = [
  * alignment API expects. A language absent from here can still be synthesised --
  * it simply cannot carry word timings.
  */
-export const ALIGNMENT_LOCALES: Readonly<Record<string, string>> = {
+const ALIGNMENT_LOCALE_CANDIDATES: Readonly<Record<string, string>> = {
   en: "en-US", // English
   fr: "fr", // French
   de: "de", // German
@@ -91,6 +91,19 @@ export const ALIGNMENT_LOCALES: Readonly<Record<string, string>> = {
   ja: "ja", // Japanese
   zh: "zh-CN", // Chinese
 };
+
+/**
+ * Languages synthesis is currently offered in. Narrower than (or equal to)
+ * `SYNTHESIS_LANGUAGES`, which stays wide so a config written for an earlier release
+ * still validates. A post in a language outside this set fails at sync time, and only
+ * when it would actually need synthesising.
+ */
+export const SYNTHESIS_SUPPORTED: readonly string[] = [...SYNTHESIS_LANGUAGES];
+
+/** Synthesis languages that can also be force-aligned, mapped to the alignment locale. */
+export const ALIGNMENT_LOCALES: Readonly<Record<string, string>> = Object.fromEntries(
+  Object.entries(ALIGNMENT_LOCALE_CANDIDATES).filter(([code]) => SYNTHESIS_SUPPORTED.includes(code))
+);
 
 /** Human-readable names, for error messages and docs. */
 export const LANGUAGE_NAMES: Readonly<Record<string, string>> = {

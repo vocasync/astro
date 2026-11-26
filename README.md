@@ -8,7 +8,7 @@ Turn your Astro blog posts into narrated audio with word-level synchronization.
 - 🎯 **Word-Level Alignment** - Precise timestamps for every word, powered by forced alignment
 - ✨ **Live Word Highlighting** - Karaoke-style highlighting that follows along with playback
 - 🎛️ **Built-in Audio Player** - Keyboard shortcuts, a floating dock, and controls you can reorder or replace
-- 🌍 **57 languages narrated, 13 highlighted** - Skip alignment with `align: false` and any language the voices speak is available
+- 🌍 **Many languages narrated, a subset highlighted** - Skip alignment with `align: false` and any language the voices speak is available
 - 🎨 **Themeable down to the pixel** - Four seeds carry a whole theme; every rule loses to yours, so no `!important`
 - 🌗 **Dark mode that follows yours** - The OS preference plus `.dark`, `[data-theme]` and `[data-mode]`, with no configuration
 - 🈯 **Translatable** - Every visible string and accessible label is overridable
@@ -237,8 +237,8 @@ export default {
   
   // Synthesis settings
   synthesis: {
-    // alloy, ash, coral, echo, fable, onyx, nova, sage, shimmer
-    voice: "onyx",
+    // Any VocaSync voice (see "Voices" below). Default: "basalt"
+    voice: "basalt",
     quality: "sd",                   // sd (standard) or hd (high definition)
     format: "mp3",                   // mp3, aac, opus, flac, wav (sent as outputFormat)
   },
@@ -263,11 +263,43 @@ export default {
     force: false,                    // Force reprocessing
   },
 
-  // Produce word-level timings. Off means narration only: cheaper, and any of the 57
-  // synthesis languages rather than the 13 that can be aligned.
+  // Produce word-level timings. Off means narration only: cheaper, and any
+  // synthesis language rather than only those that can be aligned.
   align: true,
 };
 ```
+
+### Voices
+
+Set `synthesis.voice` (or `voice:` in a post's frontmatter) to one of the VocaSync voices:
+
+`linen`, `basalt` (the default), `juniper`, `drift`, `quartz`, `volt`, `willow`, `oak`,
+`maple`, `slate`, `velvet`, `hearth`, `zest`, `granite`, `heath`, `wren`, `lark`, `cairn`,
+`fern`, `breeze`, `pearl`, `beacon`, `dawn`, `summit`, `timber`, `hush`, `blaze`, `flint`,
+`lune`, `forge`, `sol`, `vento`, `brisa`, `taiga`, `kumo`, `bada`, `jade`, `neva`, `zarya`,
+`volga`, `harbour`, `meridian`, `spark`, `ember`, `atlas`.
+
+The current voice and language list, with quality tiers, is served by the capability
+endpoint: [`GET https://vocasync.io/api/v1/synthesis/info`](https://vocasync.io/api/v1/synthesis/info).
+
+**Older names still work.** The nine names used before v2.2 are aliases, valid until
+31 March 2027:
+
+| Old name | Voice |
+|---|---|
+| `alloy` | `slate` |
+| `ash` | `atlas` |
+| `coral` | `juniper` |
+| `echo` | `beacon` |
+| `fable` | `hearth` |
+| `onyx` | `basalt` |
+| `nova` | `spark` |
+| `sage` | `willow` |
+| `shimmer` | `linen` |
+
+Switching a site from an old name to its new one, or leaving the old name in place,
+does not change the content hash: nothing is re-synthesised or re-billed. The audio map
+records the name as you wrote it.
 
 ### Per-Post Overrides
 
@@ -601,9 +633,9 @@ skip `player.css`:
 There are two lists, and which one applies depends on whether you want word
 highlighting.
 
-**Narration** works in all 57 languages the synthesis voices speak.
+**Narration** works in every language the synthesis voices speak.
 
-**Word highlighting and click-to-seek** need forced alignment, which covers 13 of them.
+**Word highlighting and click-to-seek** need forced alignment, which covers a subset of them (the table below lists each).
 Alignment is what produces the per-word timings; without it there is nothing to
 highlight or seek to.
 

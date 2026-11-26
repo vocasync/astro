@@ -1,20 +1,18 @@
 import { z } from "zod";
-import { ALIGNMENT_LOCALES, canAlign, LANGUAGE_NAMES, SYNTHESIS_LANGUAGES } from "./languages.js";
+import {
+  ALIGNMENT_LOCALES,
+  canAlign,
+  LANGUAGE_NAMES,
+  SYNTHESIS_LANGUAGES,
+  SYNTHESIS_SUPPORTED,
+} from "./languages.js";
+import { LEGACY_VOICE_NAMES, VOICE_IDS } from "./voices.js";
 
 /**
- * Supported TTS voices (matches the platform's 9 OpenAI voices)
+ * Supported voices: the VocaSync voice catalogue, plus the nine pre-2.2 names, which
+ * remain valid as aliases.
  */
-export const VoiceSchema = z.enum([
-  "alloy",
-  "ash",
-  "coral",
-  "echo",
-  "fable",
-  "onyx",
-  "nova",
-  "sage",
-  "shimmer",
-]);
+export const VoiceSchema = z.enum([...VOICE_IDS, ...LEGACY_VOICE_NAMES]);
 export type Voice = z.infer<typeof VoiceSchema>;
 
 /**
@@ -65,7 +63,7 @@ export type CollectionConfig = z.infer<typeof CollectionConfigSchema>;
  */
 export const SynthesisConfigSchema = z.object({
   /** TTS voice to use */
-  voice: VoiceSchema.default("onyx"),
+  voice: VoiceSchema.default("basalt"),
   /** Audio quality */
   quality: QualitySchema.default("sd"),
   /** Output format */
@@ -182,7 +180,8 @@ export function validateConfig(userConfig: VocaSyncUserConfig): VocaSyncConfig {
  * endpoint that says nothing about how to proceed.
  */
 export function assertLanguageSupportsAlignment(language: string, align: boolean): void {
-  if (!align || canAlign(language)) return;
+  // A language synthesis no longer offers is reported per post at sync time instead.
+  if (!align || canAlign(language) || !SYNTHESIS_SUPPORTED.includes(language)) return;
   const name = LANGUAGE_NAMES[language] ?? language;
   throw new Error(
     `${name} ("${language}") can be synthesised but not force-aligned, so it cannot ` +
@@ -202,7 +201,7 @@ export const defaultConfig: Omit<VocaSyncConfig, "collection"> = {
   language: "en",
   align: true,
   synthesis: {
-    voice: "onyx",
+    voice: "basalt",
     quality: "sd",
     format: "mp3",
   },
