@@ -228,7 +228,9 @@ async function processItem(
       const name = LANGUAGE_NAMES[language] ?? language;
       const error =
         `${name} ("${language}") is not currently available for synthesis. ` +
-        "This post's existing audio is untouched; it cannot be regenerated until the language is offered again.";
+        (existingEntry
+          ? "This post's existing audio is untouched; it cannot be regenerated until the language is offered again."
+          : "This post has no audio yet; it cannot be generated until the language is offered again.");
       onProgress(`⚠ ${item.slug} - skipped: ${error}`, "warn");
       return { slug: item.slug, status: "error", error };
     }

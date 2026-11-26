@@ -236,6 +236,65 @@ describe("unsupported synthesis language", () => {
     expect(summary.results[0].error).toContain("uk");
   });
 
+  test("a new post is told it has no audio, not that audio is untouched", async () => {
+    await writeFile(join(contentDir, "hello.md"), post("language: uk\n"));
+    const config = validateConfig({
+      collection: { name: "blog", path: contentDir },
+      output: { audioMapPath: mapPath },
+      align: false,
+    });
+    const summary = await sync(config, forbidden, only);
+    expect(summary.results[0].error).toContain("no audio yet");
+    expect(summary.results[0].error).not.toContain("untouched");
+  });
+
+  test("an existing post is told its audio is untouched", async () => {
+    await writeFile(join(contentDir, "hello.md"), post("language: uk\n"));
+    await writeMap({ language: "uk", contentHash: "stale" });
+    const config = validateConfig({
+      collection: { name: "blog", path: contentDir },
+      output: { audioMapPath: mapPath },
+      align: false,
+    });
+    const summary = await sync(config, forbidden, only);
+    expect(summary.results[0].error).toContain("untouched");
+  });
+
+  test("align: true with an alignable but unoffered language errors only when synthesis would run", async () => {
+    await writeFile(join(contentDir, "hello.md"), post("language: uk\n"));
+    const config = validateConfig({
+      collection: { name: "blog", path: contentDir },
+      output: { audioMapPath: mapPath },
+      align: true,
+    });
+
+    // Changed post: error, and it is the availability error, not the alignment one.
+    await writeMap({ language: "uk", contentHash: "stale" });
+    const changed = await sync(config, forbidden, only);
+    expect(changed.errors).toBe(1);
+    expect(changed.results[0].error).toContain("not currently available");
+    expect(changed.results[0].error).not.toContain("force-aligned");
+
+    // Up-to-date aligned post: no error, no API call.
+    const text = await textOf("uk");
+    await writeMap({
+      language: "uk",
+      aligned: true,
+      alignmentProjectUuid: "al-1",
+      words: [],
+      contentHash: contentHashFor({
+        normalisedSpeechtext: text,
+        voice: "onyx",
+        language: "uk",
+        format: "mp3",
+        align: true,
+      }),
+    });
+    const current = await sync(config, forbidden, only);
+    expect(current.unchanged).toBe(1);
+    expect(current.errors).toBe(0);
+  });
+
   test("a new post is an error too, and a supported sibling is unaffected", async () => {
     await writeFile(join(contentDir, "hello.md"), post("language: uk\n"));
     await writeFile(join(contentDir, "other.md"), post(""));
