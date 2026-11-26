@@ -61,7 +61,13 @@ export const VOICE_IDS = [
   "atlas",
 ] as const;
 
-/** Pre-2.2 voice name -> the VocaSync voice it now resolves to. */
+/**
+ * Pre-2.2 voice name -> the VocaSync voice it now resolves to.
+ *
+ * Must outlive the 31 Mar 2027 platform alias cutoff: the legacy name is also the
+ * content-hash key (see `hashVoiceKey`), so removing an entry would re-hash, and
+ * re-synthesise, every post stored under it.
+ */
 export const LEGACY_ALIASES = {
   alloy: "slate",
   ash: "atlas",
@@ -94,5 +100,5 @@ const TARGET_TO_LEGACY: Readonly<Record<string, string>> = Object.fromEntries(
  * same artifact and the same hash. Any other voice hashes as itself.
  */
 export function hashVoiceKey(voice: string): string {
-  return TARGET_TO_LEGACY[voice] ?? voice;
+  return Object.hasOwn(TARGET_TO_LEGACY, voice) ? TARGET_TO_LEGACY[voice] : voice;
 }

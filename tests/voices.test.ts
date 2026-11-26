@@ -38,6 +38,12 @@ describe("voice aliases", () => {
     expect(hashVoiceKey("oak")).toBe("oak");
   });
 
+  test("hashVoiceKey ignores Object.prototype members", () => {
+    expect(hashVoiceKey("toString")).toBe("toString");
+    expect(hashVoiceKey("constructor")).toBe("constructor");
+    expect(hashVoiceKey("__proto__")).toBe("__proto__");
+  });
+
   test("a legacy name and its target hash identically, in both hash shapes", () => {
     for (const [legacy, target] of Object.entries(LEGACY_ALIASES)) {
       const a = { ...base, voice: hashVoiceKey(legacy) };
