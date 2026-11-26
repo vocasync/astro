@@ -239,7 +239,7 @@ export default {
   synthesis: {
     // Any VocaSync voice (see "Voices" below). Default: "basalt"
     voice: "basalt",
-    quality: "sd",                   // sd (standard) or hd (high definition)
+    quality: "sd",                   // sd (standard) or hd (High Fidelity)
     format: "mp3",                   // mp3, aac, opus, flac, wav (sent as outputFormat)
   },
   
