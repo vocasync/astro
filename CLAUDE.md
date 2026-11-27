@@ -79,7 +79,7 @@ this out in release notes when the schema changes.
 
 ## External design memory (dev vault)
 
-All design memory for this repo lives in the private GitHub repo **`sayedhfatimi/dev-vault`**: specs, plans, decisions, session logs and the issue tracker. Locally it is cloned at `~/Projects/dev`. In a cloud session, attach it as a second repository next to this one. It is the only durable store; Claude's local memory doesn't reach other devices or cloud sessions.
+All design memory for this repo lives in the private GitHub repo **`sayedhfatimi/dev-vault`**: specs, plans, decisions, session logs and the issue tracker. Locally it is cloned at `~/Projects/dev-vault`. In a cloud session, attach it as a second repository next to this one. It is the only durable store; Claude's local memory doesn't reach other devices or cloud sessions.
 
 This repo's folder there is **`projects/vocasync/`**.
 
